@@ -133,13 +133,21 @@ html {
   100% { transform: translate(-50%,-50%) scale(1); }
 }
 
-/* 品牌开屏：极光弧线描绘 + 文字上浮 */
-@keyframes splash-draw {
-  to { stroke-dashoffset: 0; }
-}
+/* 品牌开屏：文字上浮（splash-draw 已在上面定义，此处原本重复了一份） */
+/* 注意：这一组动画只动 translateY。用它的元素不能用 translateX(-50%) 做水平
+   居中——CSS 动画的 transform 会覆盖内联 transform，而 fill-mode:both 让终态
+   永久生效，居中就再也回不来。水平居中请用 left:0/right:0 配 flex 或 text-align。
+   开屏的涟漪与两行文案都踩过这个坑（实测分别偏右 115px 与 72.5px）。 */
 @keyframes splash-rise {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+/* 涟漪从月亮下缘一圈圈向外扩散：圆心落在 viewBox 顶边，配合 transform-origin
+   让每圈绕该点放大，形成同心椭圆扩散，而不是整体平移。 */
+@keyframes splash-ripple-out {
+  0% { opacity: 0; transform: scale(0.5); }
+  30% { opacity: 0.55; }
+  100% { opacity: 0; transform: scale(1.15); }
 }
 
 /* 无障碍：系统开启减弱动效时全部静止 */

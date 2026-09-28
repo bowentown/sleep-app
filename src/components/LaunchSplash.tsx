@@ -142,46 +142,82 @@ export const LaunchSplash: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
         </svg>
       </div>
 
-      {/* 第三步：月亮下方的水面倒影涟漪 */}
+      {/* 第三步：月亮下缘扩散出的水面涟漪
+          ── 这里原先有真实的错位缺陷 ──
+          原实现是 6 个 ry=2 的极扁椭圆，而且容器用 left:50% + translateX(-50%)
+          居中，同时挂着 transform 动画。CSS 动画的 transform 会覆盖内联
+          transform，fill-mode:both 又把终态 translateY(0) 永久留在元素上，
+          于是 translateX(-50%) 再也没回来。实测（390px 视口）：
+            月亮中心 X = 195（正确）
+            涟漪中心 X = 310（偏右 115px = 230px 宽度的一半）
+          涟漪从 195 一直铺到 425，右半截直接跑出屏幕。评审说的「飘在月亮
+          右下角、和月亮没有任何视觉连接」就是这个偏移，不是审美问题。
+          修法：居中不再依赖 transform，改用 left:0/right:0 + flex 居中，
+          动画只负责 translateY。以下文字块同理。
+          图形本身也换成同心椭圆：圆心放在轨道顶边（cy=0），上半被 SVG 视口
+          自然裁掉，留下的下弧才是「水面上扩散的涟漪」，而不是一排平行横线。 */}
       <div
-        className="absolute left-1/2"
+        className="absolute left-0 right-0 flex justify-center"
         style={{
-          top: 'calc(38% + 118px)',
-          transform: 'translateX(-50%)',
+          top: 'calc(38% + 71px)',
           opacity: 0,
           animation: 'splash-rise 650ms ease-out 1950ms both',
         }}
       >
-        <svg width="230" height="44" viewBox="0 0 230 44">
+        <svg width="360" height="48" viewBox="0 0 360 48" aria-hidden="true">
           {(
             [
-              [6, 105, 0.6],
-              [14, 84, 0.52],
-              [22, 96, 0.45],
-              [30, 66, 0.38],
-              [38, 78, 0.3],
-              [45, 46, 0.22],
-            ] as Array<[number, number, number]>
-          ).map(([y, rx, o], i) => (
-            <ellipse key={i} cx="115" cy={y} rx={rx / 2} ry="2" fill={mc.lit} opacity={o} />
+              [40, 10],
+              [78, 17],
+              [116, 25],
+              [154, 33],
+            ] as Array<[number, number]>
+          ).map(([rx, ry], i) => (
+            <ellipse
+              key={i}
+              cx="180"
+              cy="0"
+              rx={rx}
+              ry={ry}
+              fill="none"
+              stroke={mc.lit}
+              strokeWidth="1.4"
+              style={{
+                transformOrigin: '180px 0px',
+                transformBox: 'view-box',
+                animation: `splash-ripple-out 1400ms ease-out ${1950 + i * 190}ms both`,
+              }}
+            />
           ))}
         </svg>
       </div>
 
-      {/* 宣传词 */}
-      <p
-        className="absolute left-1/2 text-[14px] text-slate-300 whitespace-nowrap"
-        style={{
-          top: 'calc(38% + 178px)',
-          transform: 'translateX(-50%)',
-          letterSpacing: '0.42em',
-          paddingLeft: '0.42em',
-          opacity: 0,
-          animation: 'splash-rise 750ms ease-out 2150ms both',
-        }}
+      {/* 品牌名。原先整屏只有图形和一句宣传词，第一印象偏空；
+          名字放在月亮之下、宣传词之上，作为视觉的落点。 */}
+      <div
+        className="absolute left-0 right-0 text-center"
+        style={{ top: 'calc(38% + 140px)', opacity: 0, animation: 'splash-rise 700ms ease-out 2050ms both' }}
       >
-        懂睡眠，更懂你
-      </p>
+        <p
+          className="text-[22px] font-black text-white"
+          style={{ letterSpacing: '0.3em', paddingLeft: '0.3em' }}
+        >
+          极光睡眠
+        </p>
+      </div>
+
+      {/* 宣传词 */}
+      <div
+        className="absolute left-0 right-0 text-center"
+        style={{ top: 'calc(38% + 182px)', opacity: 0, animation: 'splash-rise 750ms ease-out 2250ms both' }}
+      >
+        <p
+          className="text-[14px] text-slate-300 whitespace-nowrap"
+          style={{ letterSpacing: '0.42em', paddingLeft: '0.42em' }}
+        >
+          懂睡眠，更懂你
+        </p>
+      </div>
     </div>
   );
 };

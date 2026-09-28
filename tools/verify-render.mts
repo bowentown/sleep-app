@@ -122,6 +122,40 @@ for (const [label, record] of cases) {
     check(`第 ${d + 1} 天睡眠结构四段之和 = 100%`, Math.abs(sum - 100) < 0.05,
       `实际 ${sum.toFixed(2)}%（${group.map((g) => g.toFixed(1)).join(' + ')}）——分母用错会导致 >100% 被裁切`);
   }
+
+  // ---- 图例顺序必须与堆叠顺序一致 ----
+  // 柱子用 flex-col-reverse，DOM 里第一个子元素画在最下面，所以 DOM 顺序
+  // 就是「自下而上」的顺序。图例若按另一个顺序排（曾经是 深睡/REM/浅睡/清醒），
+  // 读者会以为图例是从上往下对应的，把浅睡当成 REM。
+  const colorOf = (tag: string): string | null => {
+    const inline = tag.match(/background-color:(#[0-9a-fA-F]{3,8})/);
+    if (inline) return inline[1].toLowerCase();
+    const cls = tag.match(/class="[^"]*\b(bg-[a-z]+-\d+)\b[^"]*"/);
+    return cls ? cls[1] : null;
+  };
+
+  const stackTags = [...html.matchAll(/<div[^>]*style="height:[\d.]+%[^"]*"[^>]*>/g)].map((m) => m[0]);
+  const swatchTags = [...html.matchAll(/<span[^>]*w-2\.5 h-2\.5 rounded-sm[^>]*>/g)].map((m) => m[0]);
+
+  check('找到 4 个图例色块', swatchTags.length === 4, `实际 ${swatchTags.length} 个`);
+
+  if (stackTags.length >= 4 && swatchTags.length === 4) {
+    const stackSeq = stackTags.slice(0, 4).map(colorOf);
+    const legendSeq = swatchTags.map(colorOf);
+    check('图例颜色顺序与柱子堆叠顺序一致',
+      JSON.stringify(stackSeq) === JSON.stringify(legendSeq),
+      `柱子(自下而上) ${stackSeq.join(' → ')} vs 图例 ${legendSeq.join(' → ')}`);
+
+    const clean = stripComments(html);
+    const legendRegion = clean.slice(
+      clean.indexOf('justify-center gap-3'),
+      clean.indexOf('模型估算值')
+    );
+    const order = ['深睡', '浅睡', 'REM', '清醒'].map((l) => legendRegion.indexOf(l));
+    check('图例标签顺序 = 深睡→浅睡→REM→清醒',
+      order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1])),
+      `在界面中出现的下标为 ${order.join(', ')}，应按堆叠顺序递增且都存在`);
+  }
 }
 
 // ============ SleepHypnogram：逐条边界记录 ============

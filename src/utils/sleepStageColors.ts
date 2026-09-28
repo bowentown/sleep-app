@@ -27,6 +27,11 @@ import { SleepStage } from '../types/sleep';
  * 注意「深睡」是此处唯一的深蓝，别因为好看把 REM 或醒来的颜色往蓝紫方向挪：
  * 二色觉下只剩明度和蓝-黄两条轴，把 REM 改成紫色会让它与浅睡在绿色盲下
  * 的色差从 7.2 掉到 1.7（实测）。要分开它们必须靠明度差，不是色相差。
+ *
+ * 已知取舍：「清醒」只能用暖色——REM 的品红与原本的 rose 清醒在绿色盲下
+ * 只差 ΔE00 13.7，是整套配色的瓶颈，所以清醒取橙。副作用是「琥珀暖夜」
+ * 主题的主色也是橙色，两者观感接近；但一个用于界面控件、一个用于数据分段，
+ * 语境不同，不影响读图。
  */
 export const SLEEP_STAGE_COLORS: Record<SleepStage, { hex: string; className: string; label: string }> = {
   deep: { hex: '#4f46e5', className: 'bg-indigo-600', label: '深睡' },

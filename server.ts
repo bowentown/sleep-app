@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import { isSafeHttpsUrl } from './ssrfGuard.js';
 
 dotenv.config();
 
@@ -89,55 +90,8 @@ function normalizeDeepSeekModel(modelName?: string): string {
   return modelName;
 }
 
-// SSRF Protection: Ensure custom baseUrl is HTTPS and not pointing to localhost, metadata service, or private IPs
-function isSafeHttpsUrl(urlString?: string): boolean {
-  if (!urlString) return false;
-  try {
-    const parsed = new URL(urlString);
-    if (parsed.protocol !== 'https:') return false;
-    const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, ''); // strip IPv6 brackets
-    
-    // Check loopbacks and cloud metadata
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '0.0.0.0' ||
-      hostname === '::1' ||
-      hostname === '0:0:0:0:0:0:0:1' ||
-      hostname.startsWith('169.254.') || // Cloud Metadata service (AWS, GCP, Azure, OpenStack)
-      hostname.startsWith('fe80:') ||     // IPv6 Link-Local
-      hostname.startsWith('fc00:') ||     // IPv6 Unique Local
-      hostname.startsWith('fd00:') ||     // IPv6 Unique Local
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
-      hostname.startsWith('172.16.') ||
-      hostname.startsWith('172.17.') ||
-      hostname.startsWith('172.18.') ||
-      hostname.startsWith('172.19.') ||
-      hostname.startsWith('172.20.') ||
-      hostname.startsWith('172.21.') ||
-      hostname.startsWith('172.22.') ||
-      hostname.startsWith('172.23.') ||
-      hostname.startsWith('172.24.') ||
-      hostname.startsWith('172.25.') ||
-      hostname.startsWith('172.26.') ||
-      hostname.startsWith('172.27.') ||
-      hostname.startsWith('172.28.') ||
-      hostname.startsWith('172.29.') ||
-      hostname.startsWith('172.30.') ||
-      hostname.startsWith('172.31.') ||
-      hostname.startsWith('0x') ||        // Hex IP representations (e.g. 0x7f000001)
-      hostname.startsWith('00') ||        // Octal IP representations
-      hostname.endsWith('.internal') ||
-      hostname.endsWith('.local')
-    ) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
+// SSRF 防护已抽到 ./ssrfGuard：原来内联在这里时，因为 server.ts 导入即 app.listen()，
+// 这段安全逻辑无法被自动化测试覆盖。现由 tools/verify-invariants.mts 断言。
 
 // Active recommended model with fallback
 const RECOMMENDED_GEMINI_MODEL = 'gemini-2.5-flash';

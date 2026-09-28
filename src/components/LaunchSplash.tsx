@@ -213,7 +213,13 @@ export const LaunchSplash: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
       >
         <p
           className="text-[14px] text-slate-300 whitespace-nowrap"
-          style={{ letterSpacing: '0.42em', paddingLeft: '0.42em' }}
+          style={{
+            letterSpacing: '0.42em',
+            paddingLeft: '0.42em',
+            // 上浮 + 由左向右揭开。两个动画分别只写 transform 和 clip-path，
+            // 不抢同一个属性。定位仍然只用 left/right，不用 transform。
+            animation: 'splash-rise 500ms ease-out 2250ms both, splash-ltr 900ms ease-out 2430ms both',
+          }}
         >
           懂睡眠，更懂你
         </p>

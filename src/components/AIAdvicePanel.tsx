@@ -11,6 +11,7 @@ import {
   MessageSquare,
   RefreshCw,
   Zap,
+  Moon,
 } from 'lucide-react';
 import { SleepRecord, SleepAnalysisResult, ChatMessage, UserProfile } from '../types/sleep';
 import { generateLocalClinicalAnalysis, generateLocalChatReply, classifyIntent } from '../utils/clinicalSleepEngine';
@@ -415,6 +416,22 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
           {/* 全新对话：把快捷提问铺在消息区里，顺便把空白用「能问什么」填上 */}
           {isFreshChat && (
             <div className="pt-2 space-y-2">
+              {/* 空态品牌化：一块空白区域如果什么都不放，会被读成「坏了/没加载出来」。
+                  放一个品牌标记既填了空白，又交代了这是「还没开始」。
+                  光晕用主题强调色，跟着四套主题走；aria-hidden 是因为它对读屏
+                  用户没有信息量，纯装饰。 */}
+              <div className="flex flex-col items-center justify-center pt-1 pb-5 gap-3 select-none" aria-hidden>
+                <div className="relative">
+                  <div
+                    className="absolute -inset-5 rounded-full blur-xl opacity-40"
+                    style={{ background: `radial-gradient(circle, ${theme.accentHex}55, transparent 70%)` }}
+                  />
+                  <Moon className={`w-10 h-10 ${theme.accentText} relative`} />
+                </div>
+                <span className={`text-[11px] ${theme.accentText} font-bold tracking-[0.3em] pl-[0.3em]`}>
+                  懂睡眠 · 更懂你
+                </span>
+              </div>
               <p className="text-[10px] text-slate-500 font-mono">不知道从哪问起？试试这些：</p>
               {QUICK_PROMPTS.map((prompt, i) => (
                 <button

@@ -158,7 +158,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
             <button
               type="button"
               onClick={handleStartSleep}
-              className={`w-full py-3.5 px-5 rounded-2xl ${theme.accentBg} text-white font-black text-xs tracking-wider flex items-center justify-center gap-2 active:scale-[0.99] transition-all cursor-pointer shadow-lg`}
+              className={`w-full py-3.5 px-5 rounded-2xl ${theme.accentBg} text-white font-black text-xs tracking-wider flex items-center justify-center gap-2 active:scale-[0.99] transition-all cursor-pointer shadow-lg animate-cta-breathe`}
             >
               <span>轻按开启今夜就寝记录</span>
               <span className="text-sm">→</span>

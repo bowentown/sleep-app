@@ -25,12 +25,19 @@ html {
   letter-spacing: -0.01em;
 }
 
-/* OLED 纯黑主题：阴影在纯黑上发灰，改由描边分层 */
-.theme-pure_dark .shadow-xl,
-.theme-pure_dark .shadow-lg,
+/* OLED 纯黑主题：阴影在纯黑上发灰，改由描边分层。
+   两个坑：
+   1. 不能用 !important。!important 在层叠顺序里高于动画，会把
+      .animate-cta-breathe 的呼吸光晕整个压掉——实测纯黑主题下 CTA 的
+      box-shadow 被算成 none，另外三套主题正常。这里改用 :not() 精确排除
+      带动画的元素，不用 !important 也能赢过 Tailwind 的同名工具类
+      （复合选择器特异性更高）。
+   2. shadow-xl 不能一并清成 none：上面那条卡片质感规则给纯黑主题留了
+      顶部内高光，那是纯黑底上唯一看得见的"质感"，清掉卡片会变成纯色贴纸。 */
+.theme-pure_dark .shadow-lg:not(.animate-cta-breathe),
 .theme-pure_dark .shadow-md,
 .theme-pure_dark .shadow-sm {
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 @layer utilities {
@@ -151,11 +158,72 @@ html {
 }
 
 /* 无障碍：系统开启减弱动效时全部静止 */
+/* ===== 主 CTA 呼吸光晕 =====
+   currentColor 跟随所在元素的文字色，所以四套主题不必各写一份。
+   用 box-shadow 而不是 transform/opacity：不占布局、不参与合成层，
+   也不会和元素自身的定位 transform 打架。
+
+   这一段必须放在下面那个 prefers-reduced-motion 块**之前**：
+   同特异性的规则后者胜，如果把 .animate-cta-breathe 定义写在
+   reduced-motion 块之后，块里的 animation: none 就会被它覆盖，
+   减弱动效设置直接失效（实测踩过：动画照跑）。 */
+@keyframes cta-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 255 255 / 0), 0 10px 28px -10px currentColor; }
+  50% { box-shadow: 0 0 0 5px rgb(255 255 255 / 0.05), 0 10px 36px -6px currentColor; }
+}
+.animate-cta-breathe {
+  animation: cta-breathe 3.4s ease-in-out infinite;
+}
+
+/* 无障碍：系统开启「减弱动效」时全部静止 */
 @media (prefers-reduced-motion: reduce) {
   .animate-moon-breathe,
   .animate-star-twinkle,
   .animate-tab-fade-in,
+  .animate-cta-breathe,
   .aurora-ring::before {
     animation: none;
   }
+
+  /* 开屏与到点提醒用的是内联 animation，类选择器管不到它们，
+     所以上面那份清单覆盖不全。这里用通行做法兜底：
+     把时长压到近乎 0，配合 both 的填充模式，元素直接停在终态——
+     也就是"该出现的内容都在，只是一闪而过"，而不是不动或空白。
+     这不违反「!important 不得压动画属性」那条断言：被关键帧驱动的是
+     transform / opacity / clip-path / box-shadow，不是 animation-duration。 */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ===== 卡片质感：暗色主题下把 shadow-xl 换成大半径柔影 + 顶部 1px 内高光 =====
+   在纯黑/深色底上，Tailwind 默认的硬阴影几乎看不见，卡片会显得像一块贴纸。
+   换成大半径低透明度的柔影能做出"浮起"的层次，再加一道顶部内高光模拟光源
+   从上方打下来——这是深色界面里代价最低、最通用的质感提升。
+   只覆盖 .shadow-xl，没有用 shadow-xl 的元素不受影响。 */
+.theme-midnight .shadow-xl,
+.theme-warm_amber .shadow-xl,
+.theme-serene_blue .shadow-xl {
+  box-shadow:
+    0 14px 40px -18px rgb(0 0 0 / 0.6),
+    0 2px 8px -4px rgb(0 0 0 / 0.5),
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+}
+/* 纯黑主题只留内高光：黑投影在黑底上本来就看不见 */
+.theme-pure_dark .shadow-xl {
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+}
+
+
+/* ===== 开屏宣传词「从左到右映现」 =====
+   用 clip-path 由左向右揭开，而不是第二个 transform。
+   原因：splash-rise 已经在动 transform，同一个元素上两个动画都想写 transform 时，
+   只有最后一个生效，上浮会被吃掉。clip-path 与 transform 互不干扰，
+   两个动画可以并存——这也是本项目那次开屏错位缺陷的同一个教训。 */
+@keyframes splash-ltr {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 -10% 0 0); }
 }

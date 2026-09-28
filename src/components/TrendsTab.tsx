@@ -77,6 +77,15 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
   const debt = computeSleepDebt(last7Records, targetDurationMinutes);
   const deficitNights = last7Records.filter((r) => r.durationMinutes < targetDurationMinutes).length;
   const regularity = computeBedtimeRegularity(last7Records);
+  // 本周最佳一晚。与上面的数字同口径，只取最近 7 晚，避免拿几十天前的
+  // 一次高分来代表「本周」。
+  // 注意 last7Records 是 reverse() 过的**时间正序**（oldest → newest），
+  // 所以这里要用 >= 而不是 >：同分时让更近的那一晚胜出，
+  // 否则并列最高分会一直停在最早的那天。
+  const bestNight = last7Records.length
+    ? last7Records.reduce((a, r) => (r.sleepScore >= a.sleepScore ? r : a), last7Records[0])
+    : null;
+
   const regularityClass = !regularity
     ? ''
     : regularity.stdDevMinutes < 30
@@ -262,6 +271,19 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
             </>
           ) : (
             <p className={`text-[10px] ${theme.textMuted}`}>至少需要 2 晚记录才能算出就寝时间的波动幅度</p>
+          )}
+
+          {/* 本周最佳一晚。图里那个最高点其实已经在说这件事，但要读出它得先看懂曲线；
+              直接写出来是一行字的事，而且「哪晚最好」是回顾一周时最先想知道的问题。
+              放在卡片最后：先讲问题（欠了多少、乱不乱），再给一个正向的锚点。 */}
+          {bestNight && (
+            <div className={`pt-3 border-t ${theme.cardInnerBorder} flex items-baseline justify-between gap-3`}>
+              <span className={`text-[10px] ${theme.textMuted} shrink-0`}>本周最佳</span>
+              <span className="text-[11px] font-bold text-white truncate">
+                {bestNight.date.slice(5)} · {bestNight.sleepScore} 分
+                <span className={`${theme.textMuted} font-normal`}> · 睡了 {formatDurationChinese(bestNight.durationMinutes)}</span>
+              </span>
+            </div>
           )}
         </div>
       </div>

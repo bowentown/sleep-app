@@ -203,8 +203,17 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen w-full theme-${currentTheme.id} ${currentTheme.pageBg} ${currentTheme.textPrimary} selection:bg-indigo-500/30 relative flex flex-col transition-colors duration-300`}
+      className={`min-h-screen w-full theme-${currentTheme.id} ${currentTheme.pageBg} ${currentTheme.textPrimary} ${currentTheme.selectionBg} relative flex flex-col transition-colors duration-300`}
     >
+      {/* 品牌氛围：页首背后的主题色极光带，呼应开屏那几道极光弧线。
+          纯装饰，所以 aria-hidden + pointer-events-none，不参与交互也不进无障碍树。
+          blur-3xl 把渐变糊开，opacity 压到 0.2——它是"氛围"，抢了正文对比度就错了。 */}
+      <div aria-hidden className="pointer-events-none absolute top-0 left-0 right-0 h-44 overflow-hidden">
+        <div
+          className="absolute -top-28 left-1/2 -translate-x-1/2 w-[130%] h-56 blur-3xl opacity-[0.2]"
+          style={{ background: `linear-gradient(100deg, transparent 12%, ${currentTheme.accentHex} 38%, transparent 52%, #8b5cf6 66%, transparent 84%)` }}
+        />
+      </div>
       <LaunchSplash theme={currentTheme} />
       {/* 夜间护眼：原生端由系统悬浮窗全局生效，应用内不再叠加（避免双重滤镜）；
           Web/PWA 端回退为应用内滤镜层 */}

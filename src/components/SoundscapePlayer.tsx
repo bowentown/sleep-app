@@ -40,7 +40,7 @@ const TRACKS: SoundscapeTrack[] = [
     id: 'bowl',
     name: '灵修颂钵',
     category: 'meditation',
-    description: '432Hz共鸣基频与Theta双耳脑波，深层放松',
+    description: '432Hz谐波与4Hz缓慢拍频，长音共振助放松',
     soundType: 'bowl',
     accentColor: 'from-amber-950/60 to-orange-950/40',
   },
@@ -143,7 +143,7 @@ export const SoundscapePlayer: React.FC = () => {
                   <span className="text-sm font-semibold text-slate-100">{t.name}</span>
                   {t.category === 'meditation' && (
                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
-                      脑波
+                      共振
                     </span>
                   )}
                 </div>

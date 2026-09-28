@@ -62,9 +62,15 @@ jobs:
           npm run build
           ls -la dist/
 
-      - name: Install Capacitor Core & Android & Local Notifications Plugin
+      - name: Install Local Native Plugin
         run: |
-          npm install --save-dev @capacitor/cli @capacitor/core @capacitor/android @capacitor/local-notifications
+          # Capacitor 本体版本约束在 8.x：此前不写版本，未来 9.x 发布会静默破坏构建。
+          # 固定主版本后既能复现，又不必猜测具体 patch 号。
+          npm install --legacy-peer-deps \
+            "@capacitor/cli@^8.0.0" \
+            "@capacitor/core@^8.0.0" \
+            "@capacitor/android@^8.0.0" \
+            "@capacitor/local-notifications@^8.0.0"
           # 本地原生插件：MediaPipe LLM Inference（Gemma .task 端侧推理）
           npm install --legacy-peer-deps --save-dev ./plugins/cap-gemma-llm
 

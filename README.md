@@ -6,7 +6,7 @@
 
 **懂睡眠，更懂你。**
 
-一款 100% 离线优先的 Android 睡眠记录与分析应用 · React 19 + Capacitor 7 原生封装
+一款 100% 离线优先的 Android 睡眠记录与分析应用 · React 19 + Capacitor 8 原生封装
 
 [![Build APK](https://github.com/bowentown/somnacare/actions/workflows/build-apk.yml/badge.svg)](../../actions/workflows/build-apk.yml)
 [![Release](https://img.shields.io/badge/下载-最新%20Release-blue)](../../releases/latest)
@@ -69,7 +69,7 @@
 ## 🧬 技术栈
 
 - **前端**：React 19 + TypeScript + Vite + Tailwind CSS，Web Audio API 实时合成音效，手写 PNG/SVG 生成器产出全套品牌视觉（`tools/` 目录）
-- **原生封装**：Capacitor 7（minSdk 24），GitHub Actions 全自动出包
+- **原生封装**：Capacitor 8（minSdk 24），GitHub Actions 全自动出包
 - **端侧 LLM**：
   - Web 路径：[wllama](https://github.com/transformersjs/wllama)（llama.cpp WASM）+ Qwen3-0.6B GGUF，Cache API 自管理存储；
   - 原生路径：自定义 Capacitor 插件 [`plugins/cap-gemma-llm`](plugins/cap-gemma-llm) 封装 Google **MediaPipe LLM Inference**（Gemma 3 1B int4 `.task`，mmap 加载，支持断点续传 / Bearer 令牌 / 流式生成）；
@@ -84,8 +84,11 @@ somnacare/
 │   ├── utils/             # 睡眠评分/分期推演、临床规则引擎、端侧 LLM 引擎、
 │   │                      # 原生闹钟调度、护眼滤镜、主题系统
 │   └── types/             # 领域模型
+├── server.ts              # 本地 AI 代理（DeepSeek/Gemini），含 SSRF 白名单
+├── ssrfGuard.ts           # 自定义服务端地址的 SSRF 校验（独立模块以便被自检覆盖）
 ├── plugins/cap-gemma-llm/ # 本地 Capacitor 插件（MediaPipe Gemma + 护眼服务 + 图标切换）
-├── tools/                 # 图标/启动屏 PNG 生成器、manifest 注入脚本等
+├── tools/                 # 图标/启动屏 PNG 生成器、manifest 注入脚本、
+│                          # verify-invariants.mts（数据不变量与安全断言）
 ├── native-resources/      # 全密度图标、自适应前景、四主题图标、启动屏、铃声
 ├── public/                # PWA 图标
 └── .github/workflows/     # CI：自动构建 APK；打 v* tag 自动发 Release
@@ -107,6 +110,29 @@ cd android && ./gradlew assembleDebug
 ```
 
 **不想配环境？** 推送代码到 `main` 分支，GitHub Actions 会自动构建 APK（Actions 页面下载，需登录）；**打一个 `v*` 标签**（如 `v1.0.1`）则会自动构建并发布到公开的 [Releases](../../releases)，任何人无需登录即可下载。
+
+## ✅ 数据一致性自检
+
+睡眠记录里有若干**必须恒成立**的字段关系。任何一条录入路径（床头实时记录 / 手动补录 / 一键记录 / 演示数据 / 备份导入）只要违反其中一条，图表和评分就会自相矛盾。这些关系已写成可执行断言：
+
+```bash
+npm run verify   # 只跑数据不变量与安全断言（无需浏览器、无需网络）
+npm run check    # tsc --noEmit && verify && vite build，提交前跑这个
+```
+
+约定（与临床/科研口径一致）：
+
+| 记号 | 含义 | 在本项目中的字段 |
+| --- | --- | --- |
+| TIB | 卧床时长 = 起床 − 上床 | 由 `bedtime`/`wakeTime` 推出，**不是**持久化字段 |
+| TST | 总睡眠时长 = 深睡 + 浅睡 + REM | `durationMinutes` |
+| SOL | 入睡潜伏期 | `latencyMinutes`（**包含在** `awakeMinutes` 内） |
+| WASO | 入睡后清醒 | `awakeMinutes − latencyMinutes` |
+| SE | 睡眠效率 = TST / TIB | `sleepEfficiency` |
+
+因此恒有：`分期总和 === durationMinutes + awakeMinutes === TIB`，且 `wakeCount` 必须等于分期中觉醒段数减一（首段为入睡潜伏期）。
+
+所有记录都必须经 `src/utils/sleepRecord.ts` 的 `buildSleepRecord()` 构造——它是唯一入口，负责推导上述全部字段，避免各处手写导致口径漂移。**不要在组件里手拼 `SleepRecord` 字面量。**
 
 ## ⚠️ 免责声明
 

@@ -258,6 +258,96 @@ for (const [label, record] of cases) {
   }
 }
 
+// ============ TodayTab：按时段状态卡 / 真实月相 / 一句话总结必须真的渲染出来 ============
+// 这三项的逻辑在 verify-insights 里已单独测过，但没人验证界面真的把它们显示出来
+// ——组件里漏接一个 prop、或者干脆忘了渲染，逻辑层全绿也照样是空白。
+{
+  // OneTapSleepTracker 初始化时要读 localStorage，Node 里没有这个全局对象。
+  // 垫一个最小实现，只为让这张卡能渲染出来，不改变组件行为。
+  const store: Record<string, string> = {};
+  (globalThis as unknown as { localStorage: unknown }).localStorage = {
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => { store[k] = String(v); },
+    removeItem: (k: string) => { delete store[k]; },
+    clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+  };
+
+  const noop = () => {};
+  const one = [getInitialSleepLogs()[0]];
+
+  // 目标就寝时间由测试侧用普通 Date 运算算出来（不复用被测函数），
+  // 分别落在「已超过目标就寝」与「白天」两个档位。
+  const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const now = new Date();
+  const overdueTarget = hhmm(new Date(now.getTime() - 25 * 60 * 1000));
+  const daytimeTarget = hhmm(new Date(now.getTime() + 3 * 3600 * 1000));
+
+  const renderToday = (label: string, targetBedtime: string) =>
+    render(label, React.createElement(TodayTab, {
+      records: one,
+      userProfile: {
+        name: '体验用户', targetBedtime, targetWakeTime: '07:30', targetDurationHours: 8,
+      } as unknown as UserProfile,
+      theme,
+      onOpenActiveSleep: noop,
+      onOpenManualLog: noop,
+      onNavigateToCoach: noop,
+      onSaveRecord: noop,
+    }));
+
+  const overdue = renderToday('TodayTab(已超过目标就寝)', overdueTarget);
+  const daytime = renderToday('TodayTab(白天)', daytimeTarget);
+
+  // 就寝卡不再是静态文案：同一份记录、只改目标时间，主文案必须随之改变。
+  // 这是「它真的在按时间算」的决定性证据——写死的文案不可能两边不同。
+  check('就寝卡主文案随目标时间变化（不再是静态文案）',
+    overdue.includes('已超过目标就寝') && daytime.includes('今晚目标'),
+    `超时态含「已超过目标就寝」=${overdue.includes('已超过目标就寝')} / 白天态含「今晚目标」=${daytime.includes('今晚目标')}`);
+  check('两个档位的完整文案不相同',
+    (() => {
+      const grab = (h: string) => /<h3[^>]*>([^<]*)<\/h3>/.exec(h)?.[1] ?? '';
+      return grab(overdue) !== '' && grab(overdue) !== grab(daytime);
+    })(),
+    '两边主文案相同，说明状态没有真的按时间计算');
+  check('超时态给出了具体超出多少分钟',
+    /已超过目标就寝\s*\d+\s*(分钟|小时)/.test(overdue),
+    '超时态没写出超出时长');
+  check('白天态写出了目标就寝钟点',
+    new RegExp(`今晚目标\\s*${daytimeTarget}\\s*就寝`).test(daytime),
+    `未出现「今晚目标 ${daytimeTarget} 就寝」`);
+
+  // 真实月相：与日期同步，必须带月相名与月龄
+  check('就寝卡显示真实月相与月龄',
+    /今夜(新月|娥眉月|上弦月|盈凸月|满月|亏凸月|下弦月|残月) · 月龄 [\d.]+ 天/.test(overdue),
+    '未渲染出月相名与月龄');
+  check('月相不是画死的（含按日期算出的月龄数字）',
+    /月龄 [\d.]+ 天/.test(overdue) && /月龄 [\d.]+ 天/.test(daytime),
+    '两处都没有月龄数字');
+
+  // 一句话总结：报告卡顶部先给判断，再给数据表
+  check('报告卡顶部渲染了一句话总结',
+    /昨夜(睡得不错|整体还可以|睡得一般|睡得偏少)：/.test(overdue),
+    '未渲染出总结句的开场判断');
+  const first = one[0];
+  check('总结句包含该记录的实际总睡眠时长',
+    overdue.includes(formatDurationChinese(first.durationMinutes)),
+    `期望出现「${formatDurationChinese(first.durationMinutes)}」`);
+  check('总结句包含该记录的实际效率',
+    overdue.includes(`效率 ${Math.round(first.sleepEfficiency)}%`),
+    `期望出现「效率 ${Math.round(first.sleepEfficiency)}%」`);
+  check('总结句出现在数据表之前（先给判断）',
+    overdue.indexOf('昨夜睡得') < overdue.indexOf('总睡眠时长'),
+    '总结句被排在数据表之后，读者仍要先读数字');
+
+  // 目标时间脏数据不能崩，也不能显示假的比较
+  const dirty = renderToday('TodayTab(目标时间非法)', '不是时间');
+  check('目标就寝时间非法时仍能渲染且给出回退文案',
+    dirty.includes('今晚准备入睡'),
+    '目标时间非法时应回退为静态文案而不是崩掉或算出假数字');
+
+  delete (globalThis as unknown as { localStorage?: unknown }).localStorage;
+}
+
 // ============ SleepHypnogram：清醒占比必须写明分母 ============
 // 清醒不属于总睡眠。若与深睡/浅睡/REM 并排显示却不标分母，
 // 读者会以为四者同基准，而实际上四段之和只会等于卧床。

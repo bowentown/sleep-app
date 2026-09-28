@@ -144,8 +144,14 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
                 litColor={theme.accentHex}
                 darkColor="rgba(15,23,42,0.55)"
               />
+              {/* 一次成型一个文本节点。JSX 里写成 今夜{名} · 月龄 {数} 天 会被拆成
+                  多个文本节点，React 在它们之间插入注释标记，自动化匹配与复制粘贴
+                  拿到的都是碎片。 */}
               <span className={`text-[11px] ${theme.textMuted} font-medium`}>
-                今夜{getMoonInfo(clock).phaseName} · 月龄 {getMoonInfo(clock).age.toFixed(1)} 天
+                {(() => {
+                  const moon = getMoonInfo(clock);
+                  return `今夜${moon.phaseName} · 月龄 ${moon.age.toFixed(1)} 天`;
+                })()}
               </span>
             </div>
 

@@ -84,11 +84,25 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
   const scoreY = (score: number) =>
     80 - ((Math.max(axisLo, Math.min(axisHi, score)) - axisLo) / axisSpan) * 60 - 10;
 
+  // 折线图绘图区左右各留出约半个日期标签的宽度。
+  // 首尾数据点若贴到 0% / 100%，居中对齐后的日期标签就会跨出内框边框
+  // （实测各溢出 2.1px，视觉上像被裁掉）。数据点、日期标签、面积填充
+  // 必须共用这一套 x 映射，否则三者之间又会错位。
+  const LABEL_PAD_PCT = 6;
+  const pointCount = last7Records.length;
+  const xPct = (i: number) =>
+    pointCount > 1 ? LABEL_PAD_PCT + (i / (pointCount - 1)) * (100 - 2 * LABEL_PAD_PCT) : 50;
+  const xVb = (i: number) => (xPct(i) / 100) * 280;
+
   const getScoreCoordinates = () => {
-    if (last7Records.length === 0) return '';
-    const step = 280 / Math.max(1, last7Records.length - 1);
-    return last7Records.map((r, i) => `${i * step},${scoreY(r.sleepScore)}`).join(' ');
+    if (pointCount === 0) return '';
+    return last7Records.map((r, i) => `${xVb(i)},${scoreY(r.sleepScore)}`).join(' ');
   };
+
+  // 参考线标签的光晕底色：从主题的 cardInnerBg 类名里取出十六进制色值。
+  // 折线会从标签上穿过，加一圈与底色同色的描边才能始终看清；
+  // 各主题底色不同，所以不能写死一个颜色。
+  const chartBgHex = theme.cardInnerBg.match(/#[0-9a-fA-F]{3,8}/)?.[0] ?? '#0c1222';
 
   return (
     <div className={`space-y-3 pb-28 ${theme.textPrimary}`}>
@@ -159,13 +173,6 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         {viewMode === 'quality' && (
           <div className="space-y-2 animate-in fade-in">
             <div className={`relative h-40 ${theme.cardInnerBg} rounded-2xl p-3 border ${theme.cardInnerBorder} flex flex-col justify-between`}>
-              <div className="absolute inset-x-3 top-4 border-b border-dashed border-emerald-500/30 flex justify-between text-[10px] text-emerald-400 font-mono">
-                <span>90分 达标线</span>
-              </div>
-              <div className={`absolute inset-x-3 top-18 border-b border-dashed ${innerBorder} flex justify-between text-[10px] ${textMuted} font-mono`}>
-                <span>75分 警戒线</span>
-              </div>
-
               <svg className="w-full h-24 overflow-visible my-auto" viewBox="0 0 280 80">
                 <defs>
                   <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
@@ -174,9 +181,42 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                   </linearGradient>
                 </defs>
 
+                {/*
+                  参考线必须画在 SVG 内部，与数据共用同一坐标系。
+                  原先用 CSS 的 top-4 / top-18 硬定位，而数据走的是 scoreY() 映射到
+                  viewBox 的 y∈[10,70]：换算后「90分」线落在坐标轴顶边之上、
+                  「75分」线落在约 69 分处，两条线的标注与位置都不符。
+                  超出当前纵轴范围时直接不画，避免画在轴外产生误导。
+                  虚线画在数据之前（数据压在上面），文字画在数据之后（见下方），
+                  否则首尾数据点会盖住标签的第一个字。
+                */}
+                {90 >= axisLo && 90 <= axisHi && (
+                  <line
+                    x1="0"
+                    y1={scoreY(90)}
+                    x2="280"
+                    y2={scoreY(90)}
+                    stroke="#10b981"
+                    strokeOpacity="0.5"
+                    strokeDasharray="4 4"
+                    strokeWidth="1"
+                  />
+                )}
+                {75 >= axisLo && 75 <= axisHi && (
+                  <line
+                    x1="0"
+                    y1={scoreY(75)}
+                    x2="280"
+                    y2={scoreY(75)}
+                    stroke="#64748b"
+                    strokeDasharray="4 4"
+                    strokeWidth="1"
+                  />
+                )}
+
                 {last7Records.length > 1 && (
                   <polygon
-                    points={`0,80 ${getScoreCoordinates()} 280,80`}
+                    points={`${xVb(0)},80 ${getScoreCoordinates()} ${xVb(pointCount - 1)},80`}
                     fill="url(#scoreGrad)"
                   />
                 )}
@@ -191,8 +231,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                 />
 
                 {last7Records.map((r, i) => {
-                  const step = 280 / Math.max(1, last7Records.length - 1);
-                  const x = i * step;
+                  const x = xVb(i);
                   const y = scoreY(r.sleepScore);
                   const isHovered = activeRecord?.id === r.id;
 
@@ -222,24 +261,62 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                     </g>
                   );
                 })}
+
+                {/* 参考线标签画在数据之后：否则首个数据点会盖住标签的第一个字。
+                    描边用与图表底色同色的光晕，保证折线穿过时仍然可读。 */}
+                {90 >= axisLo && 90 <= axisHi && (
+                  <text
+                    x="2"
+                    y={scoreY(90) - 3}
+                    fill="#34d399"
+                    fontSize="9"
+                    fontFamily="monospace"
+                    paintOrder="stroke"
+                    stroke={chartBgHex}
+                    strokeWidth="3"
+                  >
+                    90分 达标线
+                  </text>
+                )}
+                {75 >= axisLo && 75 <= axisHi && (
+                  <text
+                    x="2"
+                    y={scoreY(75) - 3}
+                    fill="#94a3b8"
+                    fontSize="9"
+                    fontFamily="monospace"
+                    paintOrder="stroke"
+                    stroke={chartBgHex}
+                    strokeWidth="3"
+                  >
+                    75分 警戒线
+                  </text>
+                )}
               </svg>
 
               <div className={`text-right text-[9px] ${textMuted} font-mono`}>
                 纵轴 {axisLo}–{axisHi} 分（按本周实际得分自适应）
               </div>
 
-              <div className={`flex justify-between text-[10px] ${textMuted} font-mono pt-1 border-t ${innerBorder}`}>
-                {last7Records.map((r) => (
-                  <span
-                    key={r.id}
-                    onClick={() => setHoveredRecord(r)}
-                    className={`cursor-pointer ${
-                      activeRecord?.id === r.id ? accentText + ' font-bold' : 'hover:text-white'
-                    }`}
-                  >
-                    {r.date.slice(5)}
-                  </span>
-                ))}
+              {/* 日期标签用与数据点同一套相对坐标居中（left + translateX(-50%)）。
+                  原先用 justify-between：它把首尾标签的「边缘」贴到两端，而数据点中心在
+                  0% / 100%，实测标签中心比点偏内 15.1px（中间那个点偏移为 0，正好印证）。
+                  现在两侧各留 LABEL_PAD_PCT，标签不再跨出内框边框。 */}
+              <div className={`relative h-4 border-t ${innerBorder} text-[10px] ${textMuted} font-mono`}>
+                {last7Records.map((r, i) => {
+                  return (
+                    <span
+                      key={r.id}
+                      onClick={() => setHoveredRecord(r)}
+                      style={{ left: `${xPct(i)}%` }}
+                      className={`absolute top-1 -translate-x-1/2 whitespace-nowrap cursor-pointer ${
+                        activeRecord?.id === r.id ? accentText + ' font-bold' : 'hover:text-white'
+                      }`}
+                    >
+                      {r.date.slice(5)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -248,7 +325,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         {/* View Mode 2: Sleep Stages */}
         {viewMode === 'stages' && (
           <div className="space-y-2 animate-in fade-in">
-            <div className={`h-40 ${theme.cardInnerBg} rounded-2xl p-3 border ${theme.cardInnerBorder} flex flex-col justify-between`}>
+            <div className={`min-h-[10rem] ${theme.cardInnerBg} rounded-2xl p-3 border ${theme.cardInnerBorder} flex flex-col justify-between`}>
               <div className="flex items-end justify-between gap-2 h-28 px-1">
                 {last7Records.map((r) => {
                   // 四段是「深睡/浅睡/REM/清醒」——这是对整夜卧床时间的完整划分，

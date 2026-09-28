@@ -45,7 +45,11 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     cardBg: 'bg-[#151d30]',
     cardBorder: 'border-slate-700/80',
     cardInnerBg: 'bg-[#0c1222]',
-    cardInnerBorder: 'border-slate-850',
+    // 曾经写的是 border-slate-850——Tailwind 4 的 slate 调色板只有 800/900，
+    // 这个类生成不出任何 CSS，border-color 于是回退成 currentColor，
+    // 于是「很淡的深色描边」在屏幕上变成了纯白描边（构建和类型检查都不报错）。
+    // 比外层 cardBorder（slate-700/80）更淡，形成层次而不是互抢。
+    cardInnerBorder: 'border-slate-800/60',
     accentColor: 'indigo-500',
     accentBg: 'bg-indigo-600 hover:bg-indigo-500',
     accentText: 'text-indigo-400',
@@ -70,7 +74,9 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     cardBg: 'bg-[#121214]',
     cardBorder: 'border-zinc-800',
     cardInnerBg: 'bg-[#08080a]',
-    cardInnerBorder: 'border-zinc-850',
+    // 同 midnight：border-zinc-850 不存在，会回退成纯白描边。
+    // 比外层 cardBorder（zinc-800）更淡。
+    cardInnerBorder: 'border-zinc-800/60',
     accentColor: 'indigo-500',
     accentBg: 'bg-zinc-800 hover:bg-zinc-700',
     accentText: 'text-zinc-200',

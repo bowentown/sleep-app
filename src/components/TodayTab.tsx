@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Moon,
   Plus,
   Play,
   ArrowRight,
@@ -66,13 +65,20 @@ export const TodayTab: React.FC<TodayTabProps> = ({
       {/* 1. Primary One-Tap Sleep Tracker */}
       {onSaveRecord && <OneTapSleepTracker onSaveRecord={onSaveRecord} theme={theme} targetDurationHours={userProfile.targetDurationHours} />}
 
-      {/* 2. Last Sleep Overview Card with Unified Theme Colors */}
+      {/* 2. Last Sleep Overview Card —— 全页「主角卡」
+          其它卡片都是「同样的圆角 + 同样的填充 + 同样的 1px 边框」，
+          结果没有层级，用户第一眼不知道该看哪里。这里让总结卡不带边框、
+          圆角更大，并用主题色叠一层极淡的斜向渐变，把视觉重量集中过来；
+          数据卡沿用原来的中性处理，工具入口进一步弱化成列表行。 */}
       {latestRecord ? (
-        <div className={`rounded-3xl p-5 ${theme.cardBg} border ${theme.cardBorder} shadow-xl transition-colors`}>
+        <div
+          className={`rounded-[26px] p-5 ${theme.cardBg} shadow-xl transition-colors relative overflow-hidden`}
+          style={{ backgroundImage: `linear-gradient(135deg, ${theme.accentHex}26, transparent 58%)` }}
+        >
           <div className="flex items-center justify-between text-xs mb-3 font-medium">
             <span className="text-white font-black flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
-              最近一次睡眠生理报告
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.accentHex }}></span>
+              昨夜睡眠小结
             </span>
             <span className="font-mono text-slate-300 font-bold">{latestRecord.date}</span>
           </div>
@@ -158,12 +164,13 @@ export const TodayTab: React.FC<TodayTabProps> = ({
           )}
         </div>
       ) : (
-        <div className={`rounded-3xl p-6 ${theme.cardBg} border ${theme.cardBorder} text-center space-y-2 shadow-lg`}>
-          <div className={`w-12 h-12 rounded-2xl ${theme.cardInnerBg} border ${theme.cardBorder} flex items-center justify-center mx-auto shadow-inner`}>
-            <Moon className={`w-6 h-6 ${theme.accentText}`} />
-          </div>
-          <h4 className="text-sm font-bold text-white pt-1">暂无睡眠记录</h4>
-          <p className={`text-xs ${theme.textMuted}`}>点击上方开始就寝，或通过下方快速补录真实作息</p>
+        /* 空状态不再放「又一个新月」：顶部品牌区已经是新月，就寝卡里也有一个，
+           同一个造型出现三次就不再是品牌符号而是装饰。这里改用虚线框表达
+           「位置留空、报告将出现在这里」，也不再用「上方/下方」描述布局
+           （布局一变文案就错）。 */
+        <div className={`rounded-3xl p-6 border border-dashed ${theme.cardBorder} text-center space-y-2`}>
+          <h4 className="text-sm font-bold text-white">还没有睡眠记录</h4>
+          <p className={`text-xs ${theme.textMuted}`}>完成一次就寝，这里会显示昨夜的分期结构与睡眠评分</p>
         </div>
       )}
 
@@ -174,54 +181,50 @@ export const TodayTab: React.FC<TodayTabProps> = ({
         </div>
       )}
 
-      {/* 4. Action Cards for Manual Log & Bedside Monitor */}
-      <div className="grid grid-cols-2 gap-3 pt-1">
+      {/* 4. 工具入口
+          这三个入口原本是三张与数据卡同等重量的卡片（同样的填充、边框、圆角、
+          阴影），于是「工具」和「内容」在视觉上一样重，页面没有焦点。
+          现在收进一张卡里，改成轻量列表行：无独立底色、无阴影，只用分隔线区分，
+          图标也不再套描边方块。信息一字未减，但视觉重量降到数据卡之下。 */}
+      <div className={`rounded-2xl ${theme.cardBg} border ${theme.cardBorder} overflow-hidden`}>
         <button
           type="button"
           onClick={onOpenManualLog}
-          className={`p-4 rounded-2xl ${theme.cardBg} border ${theme.cardBorder} hover:border-slate-500 text-left transition-all active:scale-[0.98] group cursor-pointer shadow-md`}
+          className={`w-full px-4 py-3 flex items-center gap-3 text-left border-b ${theme.cardBorder} hover:bg-white/[0.04] transition-colors active:bg-white/[0.07] cursor-pointer group`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className={`w-8 h-8 rounded-xl ${theme.cardInnerBg} ${theme.accentText} flex items-center justify-center border ${theme.cardBorder}`}>
-              <Plus className="w-4 h-4 stroke-[3]" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
-          </div>
-          <span className="text-sm font-bold text-white block">晨起手动补录</span>
-          <span className={`text-xs ${theme.textMuted} mt-0.5 block font-medium`}>按昨夜真实起居补记</span>
+          <Plus className={`w-4 h-4 shrink-0 ${theme.accentText}`} />
+          <span className="flex-1 min-w-0">
+            <span className="text-xs font-bold text-white block">记录昨夜睡眠</span>
+            <span className={`text-[11px] ${theme.textMuted} font-medium block`}>按真实起居时间补记</span>
+          </span>
+          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
         </button>
 
         <button
           type="button"
           onClick={onOpenActiveSleep}
-          className={`p-4 rounded-2xl ${theme.cardBg} border ${theme.cardBorder} hover:border-slate-500 text-left transition-all active:scale-[0.98] group cursor-pointer shadow-md`}
+          className={`w-full px-4 py-3 flex items-center gap-3 text-left border-b ${theme.cardBorder} hover:bg-white/[0.04] transition-colors active:bg-white/[0.07] cursor-pointer group`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className={`w-8 h-8 rounded-xl ${theme.cardInnerBg} ${theme.accentText} flex items-center justify-center border ${theme.cardBorder}`}>
-              <Play className="w-4 h-4 fill-current ml-0.5" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
-          </div>
-          <span className="text-sm font-bold text-white block">床头夜钟伴眠</span>
-          <span className={`text-xs ${theme.textMuted} mt-0.5 block font-medium`}>极简暗屏 · 助眠白噪</span>
+          <Play className={`w-4 h-4 shrink-0 fill-current ${theme.accentText}`} />
+          <span className="flex-1 min-w-0">
+            <span className="text-xs font-bold text-white block">助眠音景</span>
+            <span className={`text-[11px] ${theme.textMuted} font-medium block`}>极简暗屏 · 白噪掩蔽</span>
+          </span>
+          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
         </button>
-      </div>
 
-      {/* 5. Coach Card Prompt */}
-      <div
-        onClick={onNavigateToCoach}
-        className={`p-4 rounded-2xl ${theme.cardBg} border ${theme.cardBorder} flex items-center justify-between cursor-pointer hover:border-slate-500 transition-all shadow-md`}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl ${theme.cardInnerBg} ${theme.accentText} flex items-center justify-center border ${theme.cardBorder}`}>
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <h4 className="text-xs font-black text-white">AI 睡眠节律智能问诊</h4>
-            <p className={`text-[11px] ${theme.textMuted} font-medium`}>基于近期 7 天数据定制恢复方案</p>
-          </div>
-        </div>
-        <ArrowRight className="w-4 h-4 text-slate-400" />
+        <button
+          type="button"
+          onClick={onNavigateToCoach}
+          className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/[0.04] transition-colors active:bg-white/[0.07] cursor-pointer group"
+        >
+          <Sparkles className={`w-4 h-4 shrink-0 ${theme.accentText}`} />
+          <span className="flex-1 min-w-0">
+            <span className="text-xs font-bold text-white block">AI 睡眠节律问诊</span>
+            <span className={`text-[11px] ${theme.textMuted} font-medium block`}>基于近 7 天记录给出建议</span>
+          </span>
+          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
+        </button>
       </div>
     </div>
   );

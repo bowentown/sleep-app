@@ -320,7 +320,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
               <p className="text-[11px] text-slate-300 leading-relaxed">
                 {isNativeLlmAvailable()
                   ? 'APK 内使用原生 MediaPipe 引擎在本机推理（Gemma 3 1B int4，约 529 MB，mmap 加载），稳定性优于 WASM 方案。仅接管日常聊天；报告始终由规则引擎完成；危机与用药安全护栏优先于模型。'
-                  : '基于 llama.cpp WASM 在本机推理（Qwen3-0.6B Q4 量化，约 462 MB）。仅接管日常聊天；睡眠生理报告始终由规则引擎完成；命中自伤或药物处方疑问时安全护栏优先于模型。'}
+                  : '基于 llama.cpp WASM 在本机推理（Qwen3-0.6B Q4 量化，约 462 MB）。仅接管日常聊天；睡眠小结始终由规则引擎完成；命中自伤或药物处方疑问时安全护栏优先于模型。'}
               </p>
 
               {/* 上次崩溃警告 */}

@@ -19,6 +19,17 @@ import { applyEyeCare, eyeCareInAppStyles, isInEyeCareWindow } from './utils/eye
 import { LaunchSplash } from './components/LaunchSplash';
 
 /**
+ * 页头日期。
+ * 不用 toLocaleDateString('zh-CN', { month:'numeric', day:'numeric', weekday:'short' })：
+ * 它输出的是「9/28周一」——斜杠加数字、周几紧贴日期没有空格，
+ * 和界面其它地方「9月28日」的写法不一致。
+ */
+function formatHeaderDate(d: Date): string {
+  const weekday = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+  return `${d.getMonth() + 1}月${d.getDate()}日 周${weekday}`;
+}
+
+/**
  * localStorage 写入保护：配额超限时 setItem 会抛异常，
  * 若在 useEffect 里冒泡出去会打断渲染、把整个 App 变成错误页。
  */
@@ -242,7 +253,7 @@ export const App: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <span className={`text-xs ${currentTheme.textPrimary} font-bold ${currentTheme.cardBg} px-3.5 py-1.5 rounded-full border ${currentTheme.cardBorder} shadow-md`}>
-              {new Date().toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', weekday: 'short' })}
+              {formatHeaderDate(new Date())}
             </span>
           </div>
         </header>

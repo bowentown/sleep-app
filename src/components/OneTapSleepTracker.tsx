@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, AlertTriangle } from 'lucide-react';
+import { BedDouble, Sun, AlertTriangle } from 'lucide-react';
 import { SleepRecord } from '../types/sleep';
 import { formatDurationChinese, clockAfter, DEFAULT_LATENCY_MINUTES } from '../utils/sleepScore';
 import { buildSleepRecord } from '../utils/sleepRecord';
@@ -97,8 +97,11 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
+                {/* 这里原本是 lucide 的 Moon，和页头品牌标识、底部导航是同一个造型。
+                    同一个图形在一屏出现三次就不再是品牌符号而是装饰，所以改用
+                    与「上床就寝」语义直接相关的床，把新月留给品牌标识本身。 */}
                 <div className={`w-11 h-11 rounded-2xl ${theme.cardInnerBg} border ${theme.cardBorder} flex items-center justify-center shadow-inner`}>
-                  <Moon className={`w-5 h-5 ${theme.accentText}`} />
+                  <BedDouble className={`w-5 h-5 ${theme.accentText}`} />
                 </div>
                 <div>
                   <h3 className="text-base font-black tracking-wide text-white">今晚准备入睡</h3>

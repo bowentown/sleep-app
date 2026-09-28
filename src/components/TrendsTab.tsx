@@ -20,12 +20,20 @@ import {
 import { SleepRecord } from '../types/sleep';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { SLEEP_STAGE_COLORS } from '../utils/sleepStageColors';
+import {
+  computeSleepDebt,
+  computeBedtimeRegularity,
+  minutesSinceNoon,
+  fromMinutesSinceNoon,
+} from '../utils/sleepInsights';
 import { ThemeConfig } from '../utils/themeStyles';
 
 interface TrendsTabProps {
   records: SleepRecord[];
   onDeleteRecord?: (id: string) => void;
   theme: ThemeConfig;
+  /** 目标时长（分钟）。负债要跟目标比，缺省按 8 小时。 */
+  targetDurationMinutes?: number;
   /** 初始视图。默认「趋势与结构」，可让调用方直接落到某个视图（也便于渲染层自检） */
   initialViewMode?: MetricViewMode;
 }
@@ -36,6 +44,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
   records,
   onDeleteRecord,
   theme,
+  targetDurationMinutes = 480,
   initialViewMode = 'quality',
 }) => {
   const innerBg = theme?.cardInnerBg || 'bg-[#0a0f1d]';
@@ -62,6 +71,22 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
     1,
     ...last7Records.map((r) => r.durationMinutes + r.awakeMinutes)
   );
+
+  // 睡眠负债与就寝规律性。两者都由纯函数算出（见 utils/sleepInsights），
+  // 那边有断言覆盖跨午夜与「盈余不抵扣缺口」这两条容易错的规则。
+  const debt = computeSleepDebt(last7Records, targetDurationMinutes);
+  const deficitNights = last7Records.filter((r) => r.durationMinutes < targetDurationMinutes).length;
+  const regularity = computeBedtimeRegularity(last7Records);
+  const regularityClass = !regularity
+    ? ''
+    : regularity.stdDevMinutes < 30
+      ? 'text-emerald-400'
+      : regularity.stdDevMinutes < 60
+        ? 'text-amber-400'
+        : 'text-rose-400';
+  const bedtimePoints = last7Records
+    .map((r) => ({ m: minutesSinceNoon(r.bedtime), label: `${r.date.slice(5)} ${r.bedtime}` }))
+    .filter((p) => Number.isFinite(p.m));
 
   // 概览数字必须与「近7日」这个标签同口径：此前用的是全部记录，
   // 于是攒了 30 天数据后这里显示的是 30 天均值，标签与数据不符。
@@ -133,6 +158,111 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         <div className={`${theme.cardBg} rounded-2xl p-3 border ${theme.cardBorder} text-center`}>
           <span className={`text-[11px] font-medium ${theme.textMuted} block`}>深睡占比</span>
           <span className="text-xl font-black font-mono text-emerald-400 tabular-nums">{avgDeepRatio}%</span>
+        </div>
+      </div>
+
+      {/* 2. 睡眠负债与作息规律性
+          这两项原先完全没有，而「日均睡眠」「深睡占比」只讲了平均值。
+          规律性（就寝时间的波动幅度）在睡眠医学里是比时长更强的健康预测因子，
+          而负债回答的是「这周到底欠了多少」。两者都从现有记录直接算得出来，
+          不需要新增采集。 */}
+      <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} space-y-3`}>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-white flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            本周睡眠负债
+          </span>
+          <span className={`text-xl font-black font-mono tabular-nums ${debt.shortfallMinutes > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+            {debt.shortfallMinutes > 0 ? formatDurationChinese(debt.shortfallMinutes) : '无负债'}
+          </span>
+        </div>
+        <p className={`text-[10px] ${theme.textMuted} leading-relaxed`}>
+          {debt.days === 0
+            ? '还没有记录，无法计算累计缺口'
+            : debt.shortfallMinutes > 0
+              ? `近 ${debt.days} 晚中有 ${deficitNights} 晚没睡够目标，累计缺口 ${formatDurationChinese(debt.shortfallMinutes)}`
+              : `近 ${debt.days} 晚每晚都达到了目标时长`}
+          {debt.surplusMinutes > 0 && debt.shortfallMinutes > 0 && (
+            <>
+              {' '}
+              <span className="text-slate-500">
+                （另有 {formatDurationChinese(debt.surplusMinutes)} 盈余不计入抵扣：少睡一晚要两晚才补得回，
+                多睡一晚并不能把缺口抹平）
+              </span>
+            </>
+          )}
+        </p>
+
+        {/* 波动幅度用模板字符串一次成型。JSX 里写成 ±{n} 分钟 会被拆成三个文本节点，
+            React 会在它们之间插入注释标记，自动化匹配和复制粘贴拿到的都是碎片。 */}
+        <div className={`pt-2 border-t ${innerBorder} space-y-2`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-white flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+              就寝规律性
+            </span>
+            {regularity ? (
+              <span className={`text-xl font-black font-mono tabular-nums ${regularityClass}`}>
+                {`±${Math.round(regularity.stdDevMinutes)} 分钟`}
+              </span>
+            ) : (
+              <span className={`text-xs font-bold ${theme.textMuted}`}>记录不足</span>
+            )}
+          </div>
+
+          {regularity ? (
+            <>
+              {/* 就寝时间的分布带：一个点代表一晚，阴影是均值±1个标准差。
+                  比只给一个数字更能看出「乱在哪」。 */}
+              <div className="relative h-9">
+                <div className={`absolute left-0 right-0 top-3.5 h-2 rounded-full ${theme.cardInnerBg} border ${theme.cardInnerBorder}`} />
+                {(() => {
+                  const lo = regularity.minMinutes - 20;
+                  const hi = regularity.maxMinutes + 20;
+                  const span = Math.max(1, hi - lo);
+                  const pct = (v: number) => ((v - lo) / span) * 100;
+                  const bandL = pct(regularity.meanMinutes - regularity.stdDevMinutes);
+                  const bandR = pct(regularity.meanMinutes + regularity.stdDevMinutes);
+                  return (
+                    <>
+                      <div
+                        className="absolute top-3.5 h-2 rounded-full bg-sky-400/25"
+                        style={{ left: `${bandL}%`, width: `${Math.max(1, bandR - bandL)}%` }}
+                      />
+                      <div
+                        className="absolute top-2 w-0.5 h-5 rounded-full"
+                        style={{ left: `${pct(regularity.meanMinutes)}%`, backgroundColor: theme.accentHex }}
+                        title={`平均就寝 ${regularity.meanBedtime}`}
+                      />
+                      {bedtimePoints.map((point, i) => (
+                        <div
+                          key={i}
+                          className="absolute top-2 w-1.5 h-1.5 rounded-full bg-white/85 border border-slate-900 -translate-x-1/2"
+                          style={{ left: `${pct(point.m)}%` }}
+                          title={point.label}
+                        />
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+              <div className={`flex justify-between text-[10px] font-mono ${textMuted}`}>
+                <span>{fromMinutesSinceNoon(regularity.minMinutes)}</span>
+                <span>平均 {regularity.meanBedtime} 就寝</span>
+                <span>{fromMinutesSinceNoon(regularity.maxMinutes)}</span>
+              </div>
+              <p className={`text-[10px] ${theme.textMuted}`}>
+                最早与最晚相差 {formatDurationChinese(regularity.spanMinutes)} ·{' '}
+                {regularity.stdDevMinutes < 30
+                  ? '作息很稳定，继续保持'
+                  : regularity.stdDevMinutes < 60
+                    ? '波动略大，固定就寝时间能明显改善深睡'
+                    : '波动很大，尽量先把就寝时间固定下来'}
+              </p>
+            </>
+          ) : (
+            <p className={`text-[10px] ${theme.textMuted}`}>至少需要 2 晚记录才能算出就寝时间的波动幅度</p>
+          )}
         </div>
       </div>
 

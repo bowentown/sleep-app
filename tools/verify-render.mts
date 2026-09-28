@@ -18,6 +18,15 @@ import { TodayTab } from '../src/components/TodayTab.js';
 import { APP_THEMES } from '../src/utils/themeStyles.js';
 import { buildSleepRecord, getInitialSleepLogs } from '../src/utils/sleepRecord.js';
 import type { SleepRecord, UserProfile } from '../src/types/sleep.js';
+import {
+  computeSleepDebt,
+  computeBedtimeRegularity,
+  buildTargetTimeline,
+  describeDelta,
+  fromMinutesSinceNoon,
+  minutesSinceNoon,
+} from '../src/utils/sleepInsights.js';
+import { formatDurationChinese } from '../src/utils/sleepScore.js';
 
 let pass = 0;
 const failures: string[] = [];
@@ -260,6 +269,67 @@ for (const [label, record] of cases) {
   check('睡眠结构说明了两种分母并存',
     html.includes('总睡眠时长') && html.includes('卧床时长'),
     '未在界面上说明各占比分别以什么为分母');
+  // 堆叠条已被「昨夜 vs 目标」时间轴取代，脚注不能再提「上方堆叠条」
+  check('脚注不再引用已删除的堆叠条', !html.includes('上方堆叠条'),
+    '堆叠条已换成时间轴，脚注仍说「上方堆叠条」会指向不存在的东西');
+}
+
+// ============ SleepHypnogram：给了目标时间就必须画时间轴而不是堆叠条 ============
+// 原先泳道图下面那条四色堆叠条与泳道图、阶段方块三方重复。
+{
+  const tl = buildTargetTimeline(normal.bedtime, normal.wakeTime, '23:30', '07:30')!;
+  const withTargets = render('SleepHypnogram(带目标时间)',
+    React.createElement(SleepHypnogram, {
+      record: normal, theme, targetBedtime: '23:30', targetWakeTime: '07:30',
+    }));
+  const withoutTargets = render('SleepHypnogram(无目标时间·回退堆叠条)',
+    React.createElement(SleepHypnogram, { record: normal, theme }));
+
+  const stackedBarTag = /h-2\.5 w-full bg-slate-800 rounded-full overflow-hidden flex/;
+
+  check('带目标时间时渲染时间轴', withTargets.includes('昨夜 vs 目标'),
+    '未出现时间轴标题');
+  check('带目标时间时不再渲染堆叠条', !stackedBarTag.test(withTargets),
+    '时间轴与堆叠条同时出现，信息重复');
+  check('不带目标时间时回退到堆叠条（组件仍可单独使用）', stackedBarTag.test(withoutTargets),
+    '无目标时间时应回退，而不是留一块空白');
+
+  // 就寝/起床各一根刻度 + 一段实际区间
+  const tickPositions = [...withTargets.matchAll(/title="目标(就寝|起床) (\d{2}:\d{2})"/g)];
+  check('时间轴上目标就寝与起床各一根刻度', tickPositions.length === 2,
+    `实际 ${tickPositions.length} 根`);
+  check('刻度标注了目标钟点',
+    withTargets.includes('目标就寝 23:30') && withTargets.includes('目标起床 07:30'),
+    '刻度缺少钟点说明');
+
+  // 关键几何：实心条左端必须在目标就寝刻度之前（本用例实际比目标早睡）
+  const barLeft = /left:([\d.]+)%;width:([\d.]+)%;background-color/.exec(withTargets);
+  check('实际睡眠区间用 left/width 定位', barLeft !== null, '未找到实心条');
+  if (barLeft) {
+    check('实际区间左端位置与计算一致',
+      Math.abs(Number(barLeft[1]) - tl.actualStartPct) < 0.01,
+      `渲染 ${barLeft[1]}% vs 计算 ${tl.actualStartPct.toFixed(2)}%`);
+    check('实际区间宽度与计算一致',
+      Math.abs(Number(barLeft[2]) - (tl.actualEndPct - tl.actualStartPct)) < 0.01,
+      `渲染 ${barLeft[2]}% vs 计算 ${(tl.actualEndPct - tl.actualStartPct).toFixed(2)}%`);
+    check('实心条不贴轨道边缘（两侧留白）',
+      Number(barLeft[1]) > 0 && Number(barLeft[1]) + Number(barLeft[2]) < 100,
+      `left ${barLeft[1]}% + width ${barLeft[2]}% = ${(Number(barLeft[1]) + Number(barLeft[2])).toFixed(1)}%`);
+  }
+
+  check('时间轴写明就寝与起床相对目标的早晚',
+    withTargets.includes(describeDelta(tl.bedDeltaMinutes))
+    && withTargets.includes(describeDelta(tl.wakeDeltaMinutes)),
+    `期望出现「${describeDelta(tl.bedDeltaMinutes)}」与「${describeDelta(tl.wakeDeltaMinutes)}」`);
+
+  // 时间非法时必须回退，而不是画一条错的时间轴
+  const dirtyTargets = render('SleepHypnogram(目标时间非法)',
+    React.createElement(SleepHypnogram, {
+      record: normal, theme, targetBedtime: '不是时间', targetWakeTime: '07:30',
+    }));
+  check('目标时间非法时回退到堆叠条而不是画错的时间轴',
+    stackedBarTag.test(dirtyTargets) && !dirtyTargets.includes('昨夜 vs 目标'),
+    '脏数据应回退，不能渲染出位置错误的时间轴');
 }
 
 // ============ TrendsTab 得分曲线：日期标签必须对在数据点下方 ============
@@ -271,11 +341,14 @@ for (const [label, record] of cases) {
   const html = render('TrendsTab(7条演示数据·标签对齐)',
     React.createElement(TrendsTab, { records: demoRecords, theme }));
 
-  const lefts = [...html.matchAll(/style="left:([\d.]+)%"/g)].map((m) => Number(m[1]));
   const cxs = [...html.matchAll(/<circle cx="([\d.]+)"/g)].map((m) => Number(m[1]));
   // 居中不仅靠 left，还靠 -translate-x-1/2 把标签自身宽度抵消掉；
   // 只断言 left 的话，删掉居中变换不会被发现。
   const labelTags = [...html.matchAll(/<span[^>]*style="left:[\d.]+%"[^>]*>/g)].map((m) => m[0]);
+  // 日期标签就是这些带 left 的 <span>。不能再用「全文档里所有 style="left:N%"」
+  // 来计数：就寝规律性卡也用 left 绝对定位（分布带、均值线、每晚一个点），
+  // 会把那些一起数进来（实测从 7 变成 16）。
+  const lefts = labelTags.map((t) => Number(/style="left:([\d.]+)%"/.exec(t)![1]));
 
   check('得分曲线日期标签数 = 记录数', lefts.length === demoRecords.length,
     `期望 ${demoRecords.length} 个，实际 ${lefts.length} 个`);
@@ -352,6 +425,106 @@ for (const [label, record] of cases) {
       }
     }
   }
+}
+
+// ============ TrendsTab：睡眠负债与就寝规律性卡的数值必须与计算一致 ============
+// 这两块是新加的信息，算错了不会有任何报错——只会安静地显示一个错数字。
+{
+  const demoRecords = getInitialSleepLogs();
+  const html = render('TrendsTab(7条演示数据·负债与规律性)',
+    React.createElement(TrendsTab, { records: demoRecords, theme, targetDurationMinutes: 480 }));
+
+  const debt = computeSleepDebt(demoRecords, 480);
+  const reg = computeBedtimeRegularity(demoRecords);
+  const deficitNights = demoRecords.filter((r) => r.durationMinutes < 480).length;
+
+  check('负债卡显示累计缺口', html.includes(formatDurationChinese(debt.shortfallMinutes)),
+    `期望出现「${formatDurationChinese(debt.shortfallMinutes)}」，缺口 ${debt.shortfallMinutes} 分钟`);
+  check('负债写明有几晚没睡够', html.includes(`${deficitNights} 晚没睡够目标`),
+    `期望出现「${deficitNights} 晚没睡够目标」`);
+  check('负债卡说明盈余不能抵扣缺口', html.includes('不能把缺口抹平'),
+    '缺口与盈余必须分开说，否则读者会以为多睡一晚能抵掉欠的觉');
+
+  check('规律性卡显示波动幅度', reg !== null && html.includes(`±${Math.round(reg.stdDevMinutes)} 分钟`),
+    `期望「±${reg ? Math.round(reg.stdDevMinutes) : '?'} 分钟」`);
+  check('规律性卡显示平均就寝时间', reg !== null && html.includes(reg.meanBedtime),
+    `期望出现平均就寝时间 ${reg?.meanBedtime}`);
+  check('规律性卡标出最早与最晚就寝', reg !== null
+    && html.includes(fromMinutesSinceNoon(reg.minMinutes))
+    && html.includes(fromMinutesSinceNoon(reg.maxMinutes)),
+    '分布带两端必须有钟点标注，否则那些点没有参照');
+  check('规律性卡给出可执行的建议', /继续保持|固定就寝时间|先把就寝时间固定下来/.test(html),
+    '只给数字不给建议，读者不知道该怎么办');
+
+  // 分布带上每个点的位置。只数点是不够的：位置算错不会有任何报错。
+  // 这里断言一个与实现无关的性质——点的左右顺序必须与就寝时间的先后一致。
+  // 跨午夜处理一旦出错（把 01:05 当成 65 而不是 785 分钟），01:05 的点会跳到
+  // 最左边，这个顺序立刻崩掉。
+  const dotPairs = [...html.matchAll(/style="left:([\d.]+)%"[^>]*title="(\d{2}-\d{2} \d{2}:\d{2})"/g)]
+    .map((m) => ({ pct: Number(m[1]), label: m[2], time: m[2].slice(6) }));
+  check('能解析出分布带上的点及其对应日期', dotPairs.length === demoRecords.length,
+    `解析到 ${dotPairs.length} 个，期望 ${demoRecords.length}`);
+
+  if (dotPairs.length >= 2) {
+    check('所有点都在 0%–100% 之间', dotPairs.every((d) => d.pct >= 0 && d.pct <= 100),
+      dotPairs.map((d) => `${d.time}=${d.pct}`).join(' '));
+
+    // 关键：这里的「睡前时刻」键必须在测试侧独立实现，绝不能复用被测代码的
+    // minutesSinceNoon —— pct 就是那个函数的仿射变换，用它来排序与按 pct 排序
+    // 恒等，这条断言会永远通过（我第一版就是这么写的，去掉跨午夜处理后
+    // 它照样全绿，等于没测）。下面这个键把凌晨算成 24 点之后，是另一套实现。
+    const sleepOrderKey = (hhmm: string) => {
+      const [h, m] = hhmm.split(':').map(Number);
+      return (h >= 12 ? h : h + 24) * 60 + m;
+    };
+    // 渲染顺序是记录顺序（与位置无关），所以两边各自排序再比。
+    const byPct = [...dotPairs].sort((a, b) => a.pct - b.pct).map((d) => d.time);
+    const byOrder = [...dotPairs]
+      .sort((a, b) => sleepOrderKey(a.time) - sleepOrderKey(b.time))
+      .map((d) => d.time);
+    check('按位置排序与按睡前时刻排序结果一致（跨午夜也成立）',
+      byPct.join(',') === byOrder.join(','),
+      `按位置 ${byPct.join(' ')} / 按睡前时刻 ${byOrder.join(' ')}`);
+
+    // 再补一条更直白的：01:05 在墙钟上晚于 23:00，它的点必须更靠右。
+    // 跨午夜一错，这两点会左右颠倒。
+    const lateDot = dotPairs.find((d) => d.time === '01:05');
+    const earlyDot = dotPairs.find((d) => d.time === '23:00');
+    if (lateDot && earlyDot) {
+      check('凌晨 01:05 的点比 23:00 的点更靠右',
+        lateDot.pct > earlyDot.pct,
+        `01:05 在 ${lateDot.pct}%，23:00 在 ${earlyDot.pct}%——凌晨被当成了一天里最早的时刻`);
+    }
+
+    // 平均线必须落在最早与最晚之间，否则带子画反了
+    // 平均线是唯一同时带 left 与 background-color 的元素（色带用 className 上色）
+    const meanPct = Number(/style="left:([\d.]+)%;background-color/.exec(html)?.[1] ?? NaN);
+    check('能找到平均就寝线', Number.isFinite(meanPct), '未匹配到 left+background-color 的组合');
+    if (Number.isFinite(meanPct)) {
+      const minPct = Math.min(...dotPairs.map((d) => d.pct));
+      const maxPct = Math.max(...dotPairs.map((d) => d.pct));
+      check('平均就寝线落在最早与最晚之间', meanPct >= minPct && meanPct <= maxPct,
+        `平均线 ${meanPct}% 不在 ${minPct}%–${maxPct}% 之间`);
+    }
+  }
+}
+
+// 全部达标时不应显示负债数字，而要明确说「无负债」
+{
+  const demoRecords = getInitialSleepLogs();
+  const html = render('TrendsTab(目标宽松·无负债)',
+    React.createElement(TrendsTab, { records: demoRecords, theme, targetDurationMinutes: 300 }));
+  check('无缺口时显示「无负债」而不是 0 分钟', html.includes('无负债'),
+    '目标 300 分钟时演示数据应无缺口');
+}
+
+// 记录不足时不能把「算不出波动」显示成「波动为 0」（那会被读成非常规律）
+{
+  const one = [getInitialSleepLogs()[0]];
+  const html = render('TrendsTab(仅1条记录)', React.createElement(TrendsTab, { records: one, theme }));
+  check('记录不足时明确提示，而不是显示 ±0 分钟',
+    html.includes('记录不足') && !html.includes('±0 分钟'),
+    '一晚算不出波动，显示 ±0 会被读成「非常规律」');
 }
 
 // ============ AIAdvicePanel：无法在本层覆盖 ============

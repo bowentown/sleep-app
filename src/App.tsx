@@ -280,6 +280,7 @@ export const App: React.FC = () => {
               records={records}
               onDeleteRecord={handleDeleteRecord}
               theme={currentTheme}
+              targetDurationMinutes={Math.round(userProfile.targetDurationHours * 60)}
             />
           )}
 

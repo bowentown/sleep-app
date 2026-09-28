@@ -11,6 +11,7 @@ import { SleepHypnogram } from './SleepHypnogram';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { OneTapSleepTracker } from './OneTapSleepTracker';
 import { ThemeConfig } from '../utils/themeStyles';
+import { buildMorningSummary } from '../utils/sleepInsights';
 
 interface TodayTabProps {
   records: SleepRecord[];
@@ -60,10 +61,23 @@ export const TodayTab: React.FC<TodayTabProps> = ({
 
   const scoreInfo = latestRecord ? getScoreColor(latestRecord.sleepScore) : getScoreColor(85);
 
+  // 起床后的一句话总结。报告卡本身是一张数据表，人得自己把数字翻译成结论；
+  // 这句话只做「把已有数字串成一个判断」，比较的对象（目标时长、目标就寝、
+  // 本周最高/最低分）全部来自记录本身，不做任何医学推断。
+  const weekRecords = records.slice(0, 7);
+  const morningSummary = latestRecord
+    ? buildMorningSummary(
+        latestRecord,
+        weekRecords,
+        Math.round(userProfile.targetDurationHours * 60),
+        userProfile.targetBedtime
+      )
+    : '';
+
   return (
     <div className={`space-y-4 ${theme.textPrimary}`}>
       {/* 1. Primary One-Tap Sleep Tracker */}
-      {onSaveRecord && <OneTapSleepTracker onSaveRecord={onSaveRecord} theme={theme} targetDurationHours={userProfile.targetDurationHours} />}
+      {onSaveRecord && <OneTapSleepTracker onSaveRecord={onSaveRecord} theme={theme} targetDurationHours={userProfile.targetDurationHours} targetBedtime={userProfile.targetBedtime} />}
 
       {/* 2. Last Sleep Overview Card —— 全页「主角卡」
           其它卡片都是「同样的圆角 + 同样的填充 + 同样的 1px 边框」，
@@ -82,6 +96,11 @@ export const TodayTab: React.FC<TodayTabProps> = ({
             </span>
             <span className="font-mono text-slate-300 font-bold">{latestRecord.date}</span>
           </div>
+
+          {/* 一句话结论放在最显眼的位置：数据表保留，但先给判断，再给依据。 */}
+          <p className="text-[13px] leading-relaxed text-slate-100 font-medium mb-3">
+            {morningSummary}
+          </p>
 
           <div className="flex items-center justify-between gap-5 my-1">
             {/* Score Ring */}
@@ -177,7 +196,12 @@ export const TodayTab: React.FC<TodayTabProps> = ({
       {/* 3. Hypnogram Chart (Tonight Stage Distribution) */}
       {latestRecord && (
         <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl transition-colors`}>
-          <SleepHypnogram record={latestRecord} theme={theme} />
+          <SleepHypnogram
+            record={latestRecord}
+            theme={theme}
+            targetBedtime={userProfile.targetBedtime}
+            targetWakeTime={userProfile.targetWakeTime}
+          />
         </div>
       )}
 

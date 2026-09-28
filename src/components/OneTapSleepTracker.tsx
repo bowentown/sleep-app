@@ -5,20 +5,32 @@ import { formatDurationChinese, clockAfter, DEFAULT_LATENCY_MINUTES } from '../u
 import { buildSleepRecord } from '../utils/sleepRecord';
 import { toLocalDateString, toLocalTimeString } from '../utils/dateUtils';
 import { ThemeConfig } from '../utils/themeStyles';
+import { getBedtimeStatus } from '../utils/sleepInsights';
+import { getMoonInfo } from '../utils/moonPhase';
+import { MoonDisc } from './MoonDisc';
 
 interface OneTapSleepTrackerProps {
   onSaveRecord: (record: SleepRecord) => void;
   theme: ThemeConfig;
   targetDurationHours?: number;
+  /** 目标就寝时间 "HH:mm"，用于让这张卡按当前时间显示不同状态 */
+  targetBedtime?: string;
 }
 
-export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRecord, theme, targetDurationHours }) => {
+export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRecord, theme, targetDurationHours, targetBedtime = '23:00' }) => {
   const [sleepStartTime, setSleepStartTime] = useState<number | null>(() => {
     const saved = localStorage.getItem('somnacare_bedtime_start');
     return saved ? Number(saved) : null;
   });
 
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
+  // 就寝状态是按当前时间算的，不刷新的话跨过整点文案就不对了。
+  // 30 秒一次足够，代价可以忽略。
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [completedRecord, setCompletedRecord] = useState<SleepRecord | null>(null);
 
@@ -90,6 +102,17 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
     return `${h} 小时 ${m} 分钟`;
   };
 
+  // 这张卡以前是静态的「今晚准备入睡」，22:40 和凌晨 1 点看到的完全一样。
+  // 现在主文案随当前时间变化：临近目标就寝倒计时，超过目标就寝提醒。
+  const bedtimeStatus = getBedtimeStatus(clock, targetBedtime);
+
+  const statusToneClass =
+    bedtimeStatus.tone === 'overdue'
+      ? 'text-rose-300'
+      : bedtimeStatus.tone === 'windDown'
+        ? theme.accentText
+        : theme.textMuted;
+
   return (
     <>
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-lg transition-all relative overflow-hidden`}>
@@ -104,10 +127,26 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
                   <BedDouble className={`w-5 h-5 ${theme.accentText}`} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black tracking-wide text-white">今晚准备入睡</h3>
-                  <p className={`text-xs ${theme.textMuted} mt-0.5`}>枕边环境实时估算 · 记录真实作息起止点</p>
+                  <h3 className={`text-base font-black tracking-wide ${bedtimeStatus.tone === 'daytime' ? 'text-white' : statusToneClass}`}>
+                    {bedtimeStatus.headline}
+                  </h3>
+                  <p className={`text-xs ${theme.textMuted} mt-0.5`}>{bedtimeStatus.detail}</p>
                 </div>
               </div>
+            </div>
+
+            {/* 真实月相：与日期同步，有物理依据而不是随机装饰。
+                月相可精确计算，所以这一行每天都不一样，也顺带让这张卡有变化。 */}
+            <div className="flex items-center gap-2">
+              <MoonDisc
+                size={16}
+                date={clock}
+                litColor={theme.accentHex}
+                darkColor="rgba(15,23,42,0.55)"
+              />
+              <span className={`text-[11px] ${theme.textMuted} font-medium`}>
+                今夜{getMoonInfo(clock).phaseName} · 月龄 {getMoonInfo(clock).age.toFixed(1)} 天
+              </span>
             </div>
 
             <button

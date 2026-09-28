@@ -2,10 +2,14 @@ import React from 'react';
 import { SleepRecord, SleepStage } from '../types/sleep';
 import { ThemeConfig } from '../utils/themeStyles';
 import { SLEEP_STAGE_COLORS } from '../utils/sleepStageColors';
+import { buildTargetTimeline, describeDelta } from '../utils/sleepInsights';
 
 interface SleepHypnogramProps {
   record: SleepRecord;
   theme?: ThemeConfig;
+  /** 目标就寝 / 起床时间。两者都给时，堆叠条会换成「昨夜 vs 目标」时间轴。 */
+  targetBedtime?: string;
+  targetWakeTime?: string;
 }
 
 // 颜色统一来自 utils/sleepStageColors（原先这里写死 hex，与趋势页不一致）
@@ -16,7 +20,16 @@ const STAGE_CONFIG: Record<SleepStage, { label: string; color: string; yOffset: 
   deep: { label: '深睡', color: SLEEP_STAGE_COLORS.deep.hex, yOffset: 125, height: 26 },
 };
 
-export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme }) => {
+export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
+  record,
+  theme,
+  targetBedtime,
+  targetWakeTime,
+}) => {
+  const timeline =
+    targetBedtime && targetWakeTime
+      ? buildTargetTimeline(record.bedtime, record.wakeTime, targetBedtime, targetWakeTime)
+      : null;
   const innerBg = theme?.cardInnerBg || 'bg-[#090d1a]';
   const innerBorder = theme?.cardInnerBorder || 'border-slate-700/80';
   const textSecondary = theme?.textSecondary || 'text-slate-300';
@@ -132,14 +145,56 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
         </div>
       </div>
 
-      {/* Stage Percentage Bar */}
       <div className="mt-3">
-        <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden flex border border-slate-700">
-          <div style={{ width: `${deepPercent}%` }} className={`${SLEEP_STAGE_COLORS.deep.className} h-full`} title={`深睡: ${deepPercent}%`} />
-          <div style={{ width: `${lightPercent}%` }} className={`${SLEEP_STAGE_COLORS.light.className} h-full`} title={`浅睡: ${lightPercent}%`} />
-          <div style={{ width: `${remPercent}%` }} className={`${SLEEP_STAGE_COLORS.rem.className} h-full`} title={`REM: ${remPercent}%`} />
-          <div style={{ width: `${awakePercent}%` }} className={`${SLEEP_STAGE_COLORS.awake.className} h-full`} title={`清醒: ${awakePercent}%`} />
-        </div>
+        {timeline ? (
+          /* 「昨夜 vs 目标」时间轴。
+             原先这里是一条四色堆叠条，但它的信息与上面泳道图、下面四个阶段
+             方块完全重复。改成把「就寝比目标早 15 分钟」这件只停留在文字上的
+             信息画出来：实际睡眠区间是实心条，目标是两根刻度。 */
+          <>
+            <div className="flex items-center justify-between text-[9px] mb-1 gap-2">
+              <span className={`${textSecondary} font-medium shrink-0`}>昨夜 vs 目标</span>
+              <span className={`font-mono ${textMuted} truncate`}>
+                就寝 {record.bedtime}（{describeDelta(timeline.bedDeltaMinutes)}）· 起床 {record.wakeTime}（
+                {describeDelta(timeline.wakeDeltaMinutes)}）
+              </span>
+            </div>
+            <div className="relative h-7">
+              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-slate-800 border border-slate-700" />
+              <div
+                className="absolute top-1/2 -translate-y-1/2 h-3 rounded-full border border-slate-900/60"
+                style={{
+                  left: `${timeline.actualStartPct}%`,
+                  width: `${Math.max(0.5, timeline.actualEndPct - timeline.actualStartPct)}%`,
+                  backgroundColor: theme?.accentHex || '#818cf8',
+                }}
+                title={`实际卧床 ${record.bedtime} → ${record.wakeTime}`}
+              />
+              <div
+                className="absolute top-0.5 w-0.5 h-6 bg-white/70 rounded-full -translate-x-1/2"
+                style={{ left: `${timeline.targetBedPct}%` }}
+                title={`目标就寝 ${targetBedtime}`}
+              />
+              <div
+                className="absolute top-0.5 w-0.5 h-6 bg-white/70 rounded-full -translate-x-1/2"
+                style={{ left: `${timeline.targetWakePct}%` }}
+                title={`目标起床 ${targetWakeTime}`}
+              />
+            </div>
+            <div className={`flex justify-between text-[9px] font-mono ${textMuted} mt-0.5`}>
+              <span>{timeline.startLabel}</span>
+              <span>白色刻度 = 目标就寝 / 目标起床</span>
+              <span>{timeline.endLabel}</span>
+            </div>
+          </>
+        ) : (
+          <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden flex border border-slate-700">
+            <div style={{ width: `${deepPercent}%` }} className={`${SLEEP_STAGE_COLORS.deep.className} h-full`} title={`深睡: ${deepPercent}%`} />
+            <div style={{ width: `${lightPercent}%` }} className={`${SLEEP_STAGE_COLORS.light.className} h-full`} title={`浅睡: ${lightPercent}%`} />
+            <div style={{ width: `${remPercent}%` }} className={`${SLEEP_STAGE_COLORS.rem.className} h-full`} title={`REM: ${remPercent}%`} />
+            <div style={{ width: `${awakePercent}%` }} className={`${SLEEP_STAGE_COLORS.awake.className} h-full`} title={`清醒: ${awakePercent}%`} />
+          </div>
+        )}
 
         {/* Breakdown Legend */}
         <div className="grid grid-cols-4 gap-2 mt-3 text-center text-xs">
@@ -182,7 +237,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
 
         <p className={`mt-2 text-[9px] ${textMuted} leading-relaxed`}>
           深睡 / 浅睡 / REM 占比为占「总睡眠时长」，与临床目标同口径；清醒为占「卧床时长」。
-          上方堆叠条按卧床时长划分，四段合计 100%。
+          四段之和等于卧床时长（清醒含入睡潜伏期），因此不与上面三个占比同基准。
         </p>
       </div>
     </div>

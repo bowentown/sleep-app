@@ -17,15 +17,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Node.js 20
+      # Capacitor 8 的 CLI 要求 Node >= 22：用 Node 20 会在 `cap add android`
+      # 处直接 fatal（"The Capacitor CLI requires NodeJS >=22.0.0"）。此前不锁
+      # 版本的安装把这个不匹配掩盖成了随机失败。用 24 与本地验证保持一致。
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '24'
 
       - name: Locate App Source & Normalize Root
         run: |
@@ -57,9 +60,12 @@ jobs:
           # 使用 --legacy-peer-deps 确保无论任何 npm 版本都能 100% 成功安装
           npm install --legacy-peer-deps
 
-      - name: Build Local Offline Dist
+      - name: Lint, Verify Data Invariants & Build
         run: |
-          npm run build
+          # 数据不变量与 SSRF 断言进 CI 卡口：任何录入路径一旦产出自相矛盾的
+          # 记录（分期之和对不上卧床时长、效率与总睡眠不符等）就直接失败，
+          # 不再依赖人工肉眼比对字段。
+          npm run check
           ls -la dist/
 
       - name: Install Local Native Plugin
@@ -132,7 +138,7 @@ jobs:
           mkdir -p android/app/src/main/res/mipmap-anydpi-v26
           cp native-resources/adaptive/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           cp native-resources/adaptive/ic_launcher_round.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-          # 自适应图标底色：Capacitor 7 模板将 ic_launcher_background 定义在独立文件中
+          # 自适应图标底色：Capacitor 模板将 ic_launcher_background 定义在独立文件中
           if [ -f android/app/src/main/res/values/ic_launcher_background.xml ]; then
             sed -i 's/#FFFFFF/#0B1026/' android/app/src/main/res/values/ic_launcher_background.xml
           elif [ -f android/app/src/main/res/values/colors.xml ]; then

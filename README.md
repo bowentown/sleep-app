@@ -116,14 +116,16 @@ cd android && ./gradlew assembleDebug
 睡眠记录里有若干**必须恒成立**的字段关系。任何一条录入路径（床头实时记录 / 手动补录 / 一键记录 / 演示数据 / 备份导入）只要违反其中一条，图表和评分就会自相矛盾。这些关系已写成可执行断言：
 
 ```bash
-npm run verify         # 数据不变量 + SSRF 断言 + 渲染层断言 + 分期配色（无需浏览器、无需网络）
-npm run verify:data    # 只跑数据/安全断言
-npm run verify:render  # 只跑渲染层断言（SSR 出 HTML 后直接校验其中的数值）
-npm run verify:colors  # 只跑分期配色的可分辨性（CIEDE2000 + 红/绿色盲模拟）
-npm run check          # tsc --noEmit && verify && vite build && verify:theme，提交前跑这个
+npm run verify           # 数据不变量 + SSRF + 渲染层 + 分期配色 + 可解释结论 + 动画定位
+npm run verify:data      # 只跑数据/安全断言
+npm run verify:render    # 只跑渲染层断言（SSR 出 HTML 后直接校验其中的数值）
+npm run verify:colors    # 只跑分期配色的可分辨性（CIEDE2000 + 红/绿色盲模拟）
+npm run verify:insights  # 只跑结论文案的计算（跨午夜、负债口径等）
+npm run verify:animation # 只跑「动画 transform 覆盖内联定位」的静态检查
+npm run check            # tsc --noEmit && verify && vite build && verify:theme，提交前跑这个
 ```
 
-四层断言各管一件事，缺一不可：
+六层断言各管一件事，缺一不可：
 
 - **数据层**（`tools/verify-invariants.mts`）：记录内部字段必须自洽。
 - **渲染层**（`tools/verify-render.mts`）：把组件渲染成 HTML 后校验其中的数值。
@@ -133,6 +135,18 @@ npm run check          # tsc --noEmit && verify && vite build && verify:theme，
 - **配色层**（`tools/verify-stage-colors.mts`）：四个睡眠阶段的颜色必须在正常
   视觉、绿色盲、红色盲下都能两两分开。旧配色在绿色盲下浅睡与 REM 的色差只有
   ΔE00 7.2、红色盲下 0.7，肉眼在正常视觉下看不出来。配色不能靠眼睛挑，要按色差算。
+- **结论层**（`tools/verify-insights.mts`）：睡眠负债、就寝规律性、按时段状态、
+  一句话总结这些函数产出的是**文案**。文案错了不会被类型检查、构建或任何运行时
+  错误拦住——「已超过目标就寝 1018 分钟」可以一路顺畅地渲染到用户脸上。
+  这一层里两个真实缺陷：就寝时间未处理跨午夜时，23:30 与 00:20 会被算成相隔
+  23 小时 10 分（标准差 42.4 → 975.8）；以及「少睡一晚要两晚才补得回，
+  多睡一晚并不能抵扣」，所以负债的口径是不对称的。
+- **动画层**（`tools/verify-animation-transform.mts`）：CSS 动画里的 `transform`
+  会**覆盖**元素的内联 `transform`，而 `animation-fill-mode: both` 会让终态永久
+  生效。一个元素若靠 `translateX(-50%)` 居中、又挂着只动竖向位移的动画，它就会
+  静默错位且不会恢复——实测开屏的涟漪层因此偏右 115px、宣传词偏右 72.5px，
+  前者右半截直接跑出屏幕。这一层解析 `index.css` 的关键帧并扫描这类组合，
+  内置样本自测（真实代码修好后就没了违规样本，光扫代码无法证明规则仍有效）。
 - **构建产物层**（`tools/verify-theme-classes.mts`，**必须在 `vite build` 之后跑**）：
   Tailwind 里不存在的类名不会报错，只会静默生成不出 CSS。真实案例是
   `border-slate-850`（Tailwind 4 的 slate 只有 800/900），失效后 `border-color`

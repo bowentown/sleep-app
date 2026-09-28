@@ -25,48 +25,69 @@ interface TrendsTabProps {
   records: SleepRecord[];
   onDeleteRecord?: (id: string) => void;
   theme: ThemeConfig;
+  /** 初始视图。默认「趋势与结构」，可让调用方直接落到某个视图（也便于渲染层自检） */
+  initialViewMode?: MetricViewMode;
 }
 
-type MetricViewMode = 'quality' | 'stages' | 'circadian';
+export type MetricViewMode = 'quality' | 'stages' | 'circadian';
 
-export const TrendsTab: React.FC<TrendsTabProps> = ({ records, onDeleteRecord, theme }) => {
+export const TrendsTab: React.FC<TrendsTabProps> = ({
+  records,
+  onDeleteRecord,
+  theme,
+  initialViewMode = 'quality',
+}) => {
   const innerBg = theme?.cardInnerBg || 'bg-[#0a0f1d]';
   const innerBorder = theme?.cardInnerBorder || 'border-slate-700/80';
   const accentText = theme?.accentText || 'text-indigo-400';
   const textMuted = theme?.textMuted || 'text-slate-400';
   const textSecondary = theme?.textSecondary || 'text-slate-300';
   const accentBg = theme.accentBg;
-  const [viewMode, setViewMode] = useState<MetricViewMode>('quality');
+  const [viewMode, setViewMode] = useState<MetricViewMode>(initialViewMode);
   const [hoveredRecord, setHoveredRecord] = useState<SleepRecord | null>(null);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
-  const count = records.length;
-  const avgDuration = count > 0 ? Math.round(records.reduce((acc, r) => acc + r.durationMinutes, 0) / count) : 0;
-  const avgScore = count > 0 ? Math.round(records.reduce((acc, r) => acc + r.sleepScore, 0) / count) : 0;
-  const avgDeepRatio =
-    count > 0
-      ? Math.round(
-          (records.reduce((acc, r) => acc + (r.durationMinutes > 0 ? r.deepSleepMinutes / r.durationMinutes : 0), 0) / count) * 100
-        )
-      : 0;
+  // 记录「按日期新→旧」是所有写入路径的约定，但这里是读取侧：不假设上游
+  // 已经排好序（更早版本存下的数据可能是旧→新），自己排一遍再取最近 7 条。
+  const sortedRecords = [...records].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  const last7Records = sortedRecords.slice(0, 7).reverse(); // 转为时间正序，供画图
+  const weekCount = last7Records.length;
 
-  // Use up to last 7 days sorted chronologically
-  const last7Records = records.slice(0, 7).reverse();
+  // 概览数字必须与「近7日」这个标签同口径：此前用的是全部记录，
+  // 于是攒了 30 天数据后这里显示的是 30 天均值，标签与数据不符。
+  const weekSum = (pick: (r: SleepRecord) => number) =>
+    last7Records.reduce((acc, r) => acc + pick(r), 0);
+
+  const avgDuration = weekCount > 0 ? Math.round(weekSum((r) => r.durationMinutes) / weekCount) : 0;
+  const avgScore = weekCount > 0 ? Math.round(weekSum((r) => r.sleepScore) / weekCount) : 0;
+  // 深睡占比用「合计深睡 / 合计总睡眠」，而不是各天占比再取平均——后者会让
+  // 3 小时的短夜与 9 小时的长夜等权，算出来的不是「这一周的深睡占比」。
+  const weekTst = weekSum((r) => r.durationMinutes);
+  const avgDeepRatio = weekTst > 0 ? Math.round((weekSum((r) => r.deepSleepMinutes) / weekTst) * 100) : 0;
+
   const activeRecord = hoveredRecord || last7Records[last7Records.length - 1];
 
-  // Helper for SVG smooth trend line points
+  // 折线图纵轴此前硬编码在 50–100：低于 50 的分数会被压到同一条底线上，
+  // 而图上没有任何说明（真实分数只在 hover 时才显示）。改为按本周实际得分
+  // 自适应取窗口，并把范围标注出来，既保留分辨率又不失真。
+  const weekScores = last7Records.map((r) => r.sleepScore);
+  const scoreLo = weekScores.length > 0 ? Math.min(...weekScores) : 0;
+  const scoreHi = weekScores.length > 0 ? Math.max(...weekScores) : 100;
+  const scorePad = Math.max(3, Math.round((scoreHi - scoreLo) * 0.2));
+  const axisLo = Math.max(0, scoreLo - scorePad);
+  const axisHi = Math.min(100, scoreHi + scorePad);
+  const axisSpan = Math.max(1, axisHi - axisLo);
+
+  // 折线与圆点共用同一个 y 映射，避免两处公式各改一半后错位
+  const scoreY = (score: number) =>
+    80 - ((Math.max(axisLo, Math.min(axisHi, score)) - axisLo) / axisSpan) * 60 - 10;
+
   const getScoreCoordinates = () => {
     if (last7Records.length === 0) return '';
-    const width = 280;
-    const height = 80;
-    const step = width / Math.max(1, last7Records.length - 1);
-
-    return last7Records.map((r, i) => {
-      const x = i * step;
-      const score = Math.max(50, Math.min(100, r.sleepScore));
-      const y = height - ((score - 50) / 50) * (height - 20) - 10;
-      return `${x},${y}`;
-    }).join(' ');
+    const step = 280 / Math.max(1, last7Records.length - 1);
+    return last7Records.map((r, i) => `${i * step},${scoreY(r.sleepScore)}`).join(' ');
   };
 
   return (
@@ -172,8 +193,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ records, onDeleteRecord, t
                 {last7Records.map((r, i) => {
                   const step = 280 / Math.max(1, last7Records.length - 1);
                   const x = i * step;
-                  const score = Math.max(50, Math.min(100, r.sleepScore));
-                  const y = 80 - ((score - 50) / 50) * 60 - 10;
+                  const y = scoreY(r.sleepScore);
                   const isHovered = activeRecord?.id === r.id;
 
                   return (
@@ -204,6 +224,10 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ records, onDeleteRecord, t
                 })}
               </svg>
 
+              <div className={`text-right text-[9px] ${textMuted} font-mono`}>
+                纵轴 {axisLo}–{axisHi} 分（按本周实际得分自适应）
+              </div>
+
               <div className={`flex justify-between text-[10px] ${textMuted} font-mono pt-1 border-t ${innerBorder}`}>
                 {last7Records.map((r) => (
                   <span
@@ -227,7 +251,11 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ records, onDeleteRecord, t
             <div className={`h-40 ${theme.cardInnerBg} rounded-2xl p-3 border ${theme.cardInnerBorder} flex flex-col justify-between`}>
               <div className="flex items-end justify-between gap-2 h-28 px-1">
                 {last7Records.map((r) => {
-                  const total = Math.max(1, r.durationMinutes);
+                  // 四段是「深睡/浅睡/REM/清醒」——这是对整夜卧床时间的完整划分，
+                  // 所以分母必须是卧床时长。此前用总睡眠做分母，四段之和
+                  // = 卧床/总睡眠 > 100%，最后一截会被外层 overflow-hidden 裁掉，
+                  // 清醒段基本看不见。
+                  const total = Math.max(1, r.durationMinutes + r.awakeMinutes);
                   const deepPct = (r.deepSleepMinutes / total) * 100;
                   const remPct = (r.remSleepMinutes / total) * 100;
                   const lightPct = (r.lightSleepMinutes / total) * 100;

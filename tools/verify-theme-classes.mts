@@ -13,7 +13,7 @@
  *
  * 必须在 npm run build 之后运行（读的是 dist 里的 CSS）。
  */
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,8 +25,15 @@ const sourceFiles = [
   join(root, 'src', 'utils', 'sleepStageColors.ts'),
 ];
 
+import { APP_THEMES } from '../src/utils/themeStyles.js';
+
 const failures: string[] = [];
 let pass = 0;
+/** 与文件顶部的 failures/pass 同构：这里也要能累计通过数 */
+const check = (name: string, ok: boolean, detail = '') => {
+  if (ok) pass++;
+  else failures.push(`${name}${detail ? ` — ${detail}` : ''}`);
+};
 
 if (!existsSync(distAssets)) {
   console.error('❌ 未找到 dist/assets，请先执行 npm run build');
@@ -84,6 +91,108 @@ for (const t of [...tokens].sort()) {
   } else {
     failures.push(`${t}  ← ${[...(fieldOf.get(t) ?? [])].join(', ')}`);
   }
+}
+
+// ===== 运行期拼接变体前缀：Tailwind 扫不到，规则根本不会生成 =====
+// Tailwind 4 是在构建时静态扫描源码文本里出现的类名字符串来生成 CSS 的。
+// `focus:${theme.accentBorder}` 这种写法，扫描器看到的字面量是
+// "focus:${theme.accentBorder}"，它拼不出也扫不到 focus:border-indigo-400，
+// 于是这条规则根本不存在——输入框聚焦时描边色不变，而且不报错、不警告、
+// tsc 也通过。（实测用户源码 7 处这样的写法，构建产物里 focus:border-* 出现 0 次，
+// 而非 focus 版本出现 3 次，两者对照说明就是这个原因。）
+const VARIANT_INTERP = /(?:^|[\s"'`])((?:hover|focus|focus-visible|focus-within|active|visited|target|first|last|odd|even|group-hover|group-focus|peer-hover|peer-focus|disabled|enabled|checked|required|invalid|valid|selection|placeholder|file|marker|before|after|dark|motion-safe|motion-reduce|print|sm|md|lg|xl|2xl):\$\{)/g;
+
+/**
+ * 剥掉注释，但**保留字符串与模板字符串的内容**。
+ *
+ * 必要性：这些检查工具的说明性注释里必须能写出反例本身（比如
+ * 「不能写成 focus:${theme.accentBorder}」），否则注释没法解释清楚。
+ * 不剥注释就会把这些示例当成真实违规，报一堆假阳性。
+ * 而字符串内容恰恰是要扫的地方（违规就写在模板字符串里），所以不能一起剥掉。
+ *
+ * 做法：逐字符走一遍，用一个「当前是否在 ' " ` 里」的状态决定 // 和 /* 是不是注释。
+ */
+function stripComments(source: string): string {
+  let out = '';
+  let i = 0;
+  let quote: string | null = null;
+  while (i < source.length) {
+    const c = source[i];
+    if (quote) {
+      out += c;
+      if (c === '\\') { out += source[i + 1] ?? ''; i += 2; continue; }
+      if (c === quote) quote = null;
+      i++;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') { quote = c; out += c; i++; continue; }
+    if (c === '/' && source[i + 1] === '/') {
+      while (i < source.length && source[i] !== '\n') i++;
+      continue; // 不吞掉换行，行号才不会漂
+    }
+    if (c === '/' && source[i + 1] === '*') {
+      // 块注释跨行时补回等量换行，否则后面所有行号都会漂
+      i += 2;
+      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) {
+        if (source[i] === '\n') out += '\n';
+        i++;
+      }
+      i += 2;
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+function findInterpolatedVariants(source: string): string[] {
+  const found: string[] = [];
+  // 保留注释里的行号：剥注释时不删换行，所以行号仍然对得上
+  const clean = stripComments(source);
+  for (const m of clean.matchAll(VARIANT_INTERP)) {
+    const line = clean.slice(0, m.index).split('\n').length;
+    found.push(`第 ${line} 行 ${m[1]}…}`);
+  }
+  return found;
+}
+
+function walkSrc(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...walkSrc(full));
+    else if (/\.(tsx|ts)$/.test(full)) out.push(full);
+  }
+  return out;
+}
+
+const interpOffenders: string[] = [];
+for (const file of walkSrc(join(root, 'src'))) {
+  const found = findInterpolatedVariants(readFileSync(file, 'utf8'));
+  for (const f of found) interpOffenders.push(`${file.slice(root.length + 1)} ${f}`);
+}
+check('没有「变体前缀 + 运行期拼接」的类名', interpOffenders.length === 0,
+  interpOffenders.length
+    ? `\n     ${interpOffenders.join('\n     ')}\n     这类类名 Tailwind 静态扫描不到，规则不会生成，样式静默失效。请把完整类名写成字面量 token（如 accentFocusBorder: 'focus:border-indigo-400'）。`
+    : '');
+
+// 检测器自测：真实代码干净之后，「0 条」既可能是对的也可能是规则写歪了，
+// 用一段必然违规的样本证明它仍然有效。
+const INTERP_BAD = `const a = \`\${bg} rounded focus:\${theme.accentBorder} px-2\`;\nconst b = \`hover:\${theme.accentBg}\`;`;
+const INTERP_GOOD = `const c = \`focus:border-indigo-400 px-2\`;\nconst d = \`\${theme.accentFocusBorder}\`;`;
+check('自测：能抓出 focus:/hover: 拼接的写法', findInterpolatedVariants(INTERP_BAD).length === 2,
+  `实际抓到 ${findInterpolatedVariants(INTERP_BAD).length} 条——为 0 说明这条检查已失效`);
+check('自测：不误报写成字面量的正确写法', findInterpolatedVariants(INTERP_GOOD).length === 0,
+  '正确写法被误报会让人绕过这条检查');
+
+// 正向确认：accentFocusBorder 必须是字面量，且真的生成了 CSS
+for (const [mode, cfg] of Object.entries(APP_THEMES)) {
+  const cls = cfg.accentFocusBorder;
+  check(`${mode}.accentFocusBorder 是字面量而非拼接`, !cls.includes('${'),
+    `值是 ${cls}`);
+  check(`${mode}.accentFocusBorder 生成了 CSS`, css.includes('.' + escapeForCss(cls)),
+    `${cls} 在构建产物里找不到`);
 }
 
 console.log(`\n${'='.repeat(60)}`);

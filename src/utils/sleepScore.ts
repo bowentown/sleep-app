@@ -1,12 +1,51 @@
-import { SleepRecord, SleepStageSegment, WakingMood } from '../types/sleep';
+import { SleepStage, SleepStageSegment } from '../types/sleep';
+
+/** 一天 24 小时 = 1440 分钟 */
+const MINUTES_PER_DAY = 24 * 60;
+
+/** 未采集到入睡潜伏期时的默认假设值（**非实测**，UI 需如实标注为估算） */
+export const DEFAULT_LATENCY_MINUTES = 12;
+
+/** 未设置目标时长时的默认值（8 小时） */
+export const DEFAULT_TARGET_DURATION_MINUTES = 480;
+
+/** 解析 "HH:MM" → 当日分钟数；非法输入回退 0。 */
+export function parseClock(clock: string): number {
+  const [h, m] = String(clock ?? '').split(':').map(Number);
+  const hh = Number.isFinite(h) ? h : 0;
+  const mm = Number.isFinite(m) ? m : 0;
+  return hh * 60 + mm;
+}
+
+/** 从 bedtime 起偏移 minutes 得到 "HH:MM"（跨午夜安全）。 */
+export function clockAfter(bedtime: string, minutes: number): string {
+  const total = parseClock(bedtime) + minutes;
+  const norm = ((total % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return `${String(Math.floor(norm / 60)).padStart(2, '0')}:${String(norm % 60).padStart(2, '0')}`;
+}
 
 /**
- * Calculates a 0-100 scientific sleep score based on:
- * - Total duration (40 pts) - scored against the user's own target (CBT-I sleep diary
- *   convention: compare against the prescribed window, not a population constant)
- * - Deep sleep ratio (20 pts) - optimal 15%-25%
- * - REM sleep ratio (20 pts) - optimal 20%-25%
- * - Sleep efficiency & awakenings (20 pts) - awakenings penalty, latency
+ * bedtime → wakeTime 的卧床时长（分钟），跨午夜安全。
+ * 这是"卧床时间 (TIB, time in bed)"，含入睡潜伏期与夜间清醒。
+ */
+export function timeInBedMinutes(bedtime: string, wakeTime: string): number {
+  const bed = parseClock(bedtime);
+  let wake = parseClock(wakeTime);
+  if (wake <= bed) wake += MINUTES_PER_DAY;
+  return wake - bed;
+}
+
+/**
+ * 睡眠得分（0-100）与睡眠效率。
+ *
+ * 语义契约（调用方必须与此一致，否则效率会失真）：
+ *   durationMinutes = 总睡眠时间 TST，**不含**清醒
+ *   awakeMinutes    = 卧床期间的清醒总量 = 入睡潜伏期(SOL) + 夜间清醒(WASO)
+ *   latencyMinutes  = 入睡潜伏期 SOL，**仅用于"入睡困难"扣分，不再重复计入卧床**
+ *   卧床 TIB        = durationMinutes + awakeMinutes
+ *   睡眠效率 SE     = TST / TIB
+ *
+ * 例：卧床 480 分钟只睡着 120 分钟 → 效率如实返回 25%，不托底。
  */
 export function calculateSleepScore(
   durationMinutes: number,
@@ -15,16 +54,22 @@ export function calculateSleepScore(
   awakeMinutes: number,
   wakeCount: number,
   latencyMinutes: number,
-  targetDurationMinutes: number = 480
+  targetDurationMinutes: number = DEFAULT_TARGET_DURATION_MINUTES
 ): { score: number; efficiency: number } {
-  const totalBedMinutes = durationMinutes + awakeMinutes + latencyMinutes;
-  const efficiency = totalBedMinutes > 0 ? Math.round((durationMinutes / totalBedMinutes) * 100) : 0;
+  const tst = Math.max(0, durationMinutes);
+  const awake = Math.max(0, awakeMinutes);
+  const latency = Math.max(0, latencyMinutes);
 
-  // 1. Duration score (max 40) — 相对用户自设目标的偏差计分；过长与过短对称扣分
+  // awake 已包含入睡潜伏期，不能再 + latencyMinutes
+  // （否则潜伏期被算两遍，效率被系统性压低：卧床 8h 真实 96% 会显示成 93%）
+  const totalBedMinutes = tst + awake;
+  const efficiency = totalBedMinutes > 0 ? Math.round((tst / totalBedMinutes) * 100) : 0;
+
+  // 1. 时长得分（满分 40）—— 相对用户自设目标；过长与过短对称扣分
   //    （睡眠科学与流行病学研究均支持时长过短与过长关联更差结局）
-  const durationHours = durationMinutes / 60;
+  const durationHours = tst / 60;
   const absDiffHours = Math.abs(durationHours - targetDurationMinutes / 60);
-  let durationScore = 0;
+  let durationScore: number;
   if (absDiffHours <= 0.5) {
     durationScore = 40;
   } else if (absDiffHours <= 1) {
@@ -37,9 +82,9 @@ export function calculateSleepScore(
     durationScore = 10;
   }
 
-  // 2. Deep sleep ratio score (max 20)
-  const deepRatio = durationMinutes > 0 ? deepSleepMinutes / durationMinutes : 0;
-  let deepScore = 0;
+  // 2. 深睡比例得分（满分 20）
+  const deepRatio = tst > 0 ? deepSleepMinutes / tst : 0;
+  let deepScore: number;
   if (deepRatio >= 0.16 && deepRatio <= 0.25) {
     deepScore = 20;
   } else if (deepRatio >= 0.12) {
@@ -50,252 +95,162 @@ export function calculateSleepScore(
     deepScore = 8;
   }
 
-  // 3. REM sleep ratio score (max 20)
-  const remRatio = durationMinutes > 0 ? remSleepMinutes / durationMinutes : 0;
-  let remScore = 0;
-  if (remRatio >= 0.20 && remRatio <= 0.26) {
+  // 3. REM 比例得分（满分 20）
+  const remRatio = tst > 0 ? remSleepMinutes / tst : 0;
+  let remScore: number;
+  if (remRatio >= 0.2 && remRatio <= 0.26) {
     remScore = 20;
   } else if (remRatio >= 0.15) {
     remScore = 16;
-  } else if (remRatio >= 0.10) {
+  } else if (remRatio >= 0.1) {
     remScore = 11;
   } else {
     remScore = 7;
   }
 
-  // 4. Efficiency & awakenings penalty (max 20)
+  // 4. 连续性与效率（满分 20）
   let restScore = 20;
   if (wakeCount > 3) restScore -= (wakeCount - 3) * 2;
-  if (latencyMinutes > 30) restScore -= Math.min(6, Math.floor((latencyMinutes - 30) / 10) * 2);
+  if (latency > 30) restScore -= Math.min(6, Math.floor((latency - 30) / 10) * 2);
   if (efficiency < 85) restScore -= Math.min(6, Math.floor((85 - efficiency) / 3));
   // CBT-I 对齐：效率极低（卧床时间远超实际睡眠）要显著扣分，
   // 不能让"躺在床上更久"反而拿到更高分（与睡眠限制疗法方向一致）
   if (efficiency < 60) restScore -= Math.min(12, Math.round((60 - efficiency) / 5));
   restScore = Math.max(0, restScore);
 
-  // 低分不托底：短睡/零深睡就该拿低分（此前 Math.max(25,…) 会让差记录虚高 15-20 分）
+  // 低分不托底：短睡/零深睡就该拿低分（托底会让差记录虚高 15-20 分）
   const finalScore = Math.min(99, Math.max(5, durationScore + deepScore + remScore + restScore));
 
   return {
     score: finalScore,
-    // 如实报告效率：此前 Math.max(50,…) 会把真实 25% 的效率显示成 50%
-    efficiency: Math.min(99, Math.max(0, efficiency)),
+    // 如实报告效率（托底会把真实 25% 显示成 50%）
+    efficiency: Math.max(0, Math.min(100, efficiency)),
   };
 }
 
-/**
- * Generates realistic cyclical sleep stage segments (Deep -> Light -> REM -> Awake)
- * across 90-110 min sleep ultradian cycles.
- */
-export function generateSleepStages(
-  bedtimeStr: string,
-  wakeTimeStr: string,
-  latencyMinutes: number = 12
-): {
+export interface GeneratedStages {
   stages: SleepStageSegment[];
   deepMinutes: number;
   lightMinutes: number;
   remMinutes: number;
   awakeMinutes: number;
-} {
-  const [bHour, bMin] = bedtimeStr.split(':').map(Number);
-  const [wHour, wMin] = wakeTimeStr.split(':').map(Number);
+  /** 实际采用的入睡潜伏期（已按卧床时长钳制） */
+  latencyMinutes: number;
+  /** 实际放入分期的夜醒段数（= 清醒段数 − 1） */
+  wakeCount: number;
+  /** 卧床时长 */
+  timeInBedMinutes: number;
+}
 
-  let bedDate = new Date();
-  bedDate.setHours(bHour, bMin, 0, 0);
+/**
+ * 按超昼夜节律推演睡眠分期（Deep → Light → REM → Awake，周期约 90-110 分钟）。
+ *
+ * ⚠️ 这是**模型推演，不是实测**：输入只有作息起止点、入睡潜伏期与夜醒次数，
+ * 不读取任何传感器（无加速度计、无麦克风、无 EEG）。调用方必须在 UI 上
+ * 如实标注为估算值，不得表述为"监测/检测/脑波"。
+ *
+ * 硬性约束（由 tools/verify-invariants.mts 断言）：
+ *   1. 所有分期时长之和 === 卧床时长
+ *   2. deep/light/rem/awake 四个分量 === 对应分期之和
+ *   3. 首段固定为入睡潜伏期（awake）；夜醒段数 === wakeCount
+ */
+export function generateSleepStages(
+  bedtimeStr: string,
+  wakeTimeStr: string,
+  latencyMinutes: number = DEFAULT_LATENCY_MINUTES,
+  wakeCount: number = 1
+): GeneratedStages {
+  const tib = Math.max(1, timeInBedMinutes(bedtimeStr, wakeTimeStr));
 
-  let wakeDate = new Date();
-  wakeDate.setHours(wHour, wMin, 0, 0);
-  if (wakeDate.getTime() <= bedDate.getTime()) {
-    wakeDate.setDate(wakeDate.getDate() + 1);
+  // 入睡潜伏期不能吃掉整段卧床
+  const latency = Math.max(1, Math.min(Math.round(latencyMinutes) || 1, Math.max(1, tib - 1)));
+
+  // 夜醒段：默认 5 分钟一段；卧床不够时先缩短段长、再减少段数，保证至少 1 分钟睡眠
+  let arousals = Math.max(0, Math.min(Math.round(wakeCount) || 0, 6));
+  let arousalLen = 5;
+  while (arousals > 0 && tib - latency - arousals * arousalLen < 1) {
+    if (arousalLen > 1) arousalLen--;
+    else arousals--;
+  }
+  const sleepPortion = tib - latency - arousals * arousalLen; // >= 1
+
+  // 把睡眠主体拆成若干 ~90 分钟的周期
+  const cycles = Math.max(1, Math.round(sleepPortion / 92));
+  const perCycle = Math.floor(sleepPortion / cycles);
+
+  const groups: Array<Array<{ stage: SleepStage; minutes: number }>> = [];
+  for (let i = 0; i < cycles; i++) {
+    const len = i === cycles - 1 ? sleepPortion - perCycle * (cycles - 1) : perCycle;
+    if (len <= 0) continue;
+    // 前两个周期深睡多，之后 REM 比例上升
+    const deepRatio = i < 2 ? 0.34 : 0.12;
+    const remRatio = i >= 2 ? 0.26 : 0.13;
+    const deep = Math.round(len * deepRatio);
+    let rem = Math.round(len * remRatio);
+    if (deep + rem > len) rem = Math.max(0, len - deep); // 极短周期兜底
+    const light = len - deep - rem;
+
+    const seg: Array<{ stage: SleepStage; minutes: number }> = [];
+    if (deep > 0) seg.push({ stage: 'deep', minutes: deep });
+    if (light > 0) seg.push({ stage: 'light', minutes: light });
+    if (rem > 0) seg.push({ stage: 'rem', minutes: rem });
+    if (seg.length > 0) groups.push(seg);
   }
 
-  const totalMin = Math.round((wakeDate.getTime() - bedDate.getTime()) / 60000);
-  const stages: SleepStageSegment[] = [];
+  // 夜醒均匀插在周期之间
+  const gaps = Math.max(0, groups.length - 1);
+  const perGap = new Array<number>(gaps).fill(0);
+  if (gaps > 0) for (let a = 0; a < arousals; a++) perGap[a % gaps] += 1;
 
-  let currentMin = 0;
-  let deepMin = 0;
-  let lightMin = 0;
-  let remMin = 0;
-  let awakeMin = 0;
-
-  // 入睡潜伏期：清醒段（时长由调用方给定，演示数据用各家真实值保持一致）
-  const latency = Math.max(1, Math.min(120, Math.round(latencyMinutes)));
-  stages.push({
-    stage: 'awake',
-    startTime: formatTimeOffset(bedDate, currentMin),
-    endTime: formatTimeOffset(bedDate, currentMin + latency),
-    durationMinutes: latency,
+  const seq: Array<{ stage: SleepStage; minutes: number }> = [{ stage: 'awake', minutes: latency }];
+  groups.forEach((g, i) => {
+    seq.push(...g);
+    for (let k = 0; k < (perGap[i] ?? 0); k++) seq.push({ stage: 'awake', minutes: arousalLen });
   });
-  awakeMin += latency;
-  currentMin += latency;
 
-  // Cycles of ~90 mins: deep -> light -> rem
-  let cycleNum = 0;
-  while (currentMin < totalMin - 15) {
-    cycleNum++;
-    const remaining = totalMin - currentMin;
-
-    // Earlier cycles have more deep sleep, later cycles have more REM
-    const deepDuration = cycleNum <= 2 ? Math.min(35, Math.floor(remaining * 0.35)) : Math.min(15, Math.floor(remaining * 0.15));
-    const lightDuration = Math.min(30, Math.floor(remaining * 0.4));
-    const remDuration = cycleNum >= 2 ? Math.min(25, Math.floor(remaining * 0.28)) : Math.min(14, Math.floor(remaining * 0.15));
-
-    if (deepDuration > 5) {
-      stages.push({
-        stage: 'deep',
-        startTime: formatTimeOffset(bedDate, currentMin),
-        endTime: formatTimeOffset(bedDate, currentMin + deepDuration),
-        durationMinutes: deepDuration,
-      });
-      deepMin += deepDuration;
-      currentMin += deepDuration;
-    }
-
-    if (lightDuration > 5 && currentMin < totalMin - 10) {
-      stages.push({
-        stage: 'light',
-        startTime: formatTimeOffset(bedDate, currentMin),
-        endTime: formatTimeOffset(bedDate, currentMin + lightDuration),
-        durationMinutes: lightDuration,
-      });
-      lightMin += lightDuration;
-      currentMin += lightDuration;
-    }
-
-    if (remDuration > 5 && currentMin < totalMin - 10) {
-      stages.push({
-        stage: 'rem',
-        startTime: formatTimeOffset(bedDate, currentMin),
-        endTime: formatTimeOffset(bedDate, currentMin + remDuration),
-        durationMinutes: remDuration,
-      });
-      remMin += remDuration;
-      currentMin += remDuration;
-    }
-
-    // Occasional brief arousal
-    if (cycleNum === 2 && currentMin < totalMin - 20) {
-      stages.push({
-        stage: 'awake',
-        startTime: formatTimeOffset(bedDate, currentMin),
-        endTime: formatTimeOffset(bedDate, currentMin + 5),
-        durationMinutes: 5,
-      });
-      awakeMin += 5;
-      currentMin += 5;
-    }
+  // 组装分期；时间戳由 bedtime + 累计偏移派生
+  const stages: SleepStageSegment[] = [];
+  const totals: Record<SleepStage, number> = { awake: 0, rem: 0, light: 0, deep: 0 };
+  let offset = 0;
+  for (const s of seq) {
+    if (s.minutes <= 0) continue;
+    stages.push({
+      stage: s.stage,
+      startTime: clockAfter(bedtimeStr, offset),
+      endTime: clockAfter(bedtimeStr, offset + s.minutes),
+      durationMinutes: s.minutes,
+    });
+    totals[s.stage] += s.minutes;
+    offset += s.minutes;
   }
 
-  // Final waking period
-  if (currentMin < totalMin) {
-    const finalDiff = totalMin - currentMin;
-    stages.push({
-      stage: 'light',
-      startTime: formatTimeOffset(bedDate, currentMin),
-      endTime: formatTimeOffset(bedDate, totalMin),
-      durationMinutes: finalDiff,
-    });
-    lightMin += finalDiff;
+  // 兜底：把舍入差额并入最后一段，保证总和精确等于卧床时长
+  if (offset !== tib && stages.length > 0) {
+    const diff = tib - offset;
+    const last = stages[stages.length - 1];
+    if (last.durationMinutes + diff > 0) {
+      last.durationMinutes += diff;
+      last.endTime = clockAfter(bedtimeStr, tib);
+      totals[last.stage] += diff;
+    }
   }
 
   return {
     stages,
-    deepMinutes: deepMin,
-    lightMinutes: lightMin,
-    remMinutes: remMin,
-    awakeMinutes: awakeMin,
+    deepMinutes: totals.deep,
+    lightMinutes: totals.light,
+    remMinutes: totals.rem,
+    awakeMinutes: totals.awake,
+    latencyMinutes: latency,
+    wakeCount: Math.max(0, stages.filter((s) => s.stage === 'awake').length - 1),
+    timeInBedMinutes: tib,
   };
 }
 
-function formatTimeOffset(baseDate: Date, minutesOffset: number): string {
-  const d = new Date(baseDate.getTime() + minutesOffset * 60000);
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
-}
-
 export function formatDurationChinese(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const safe = Math.max(0, Math.round(minutes || 0));
+  const h = Math.floor(safe / 60);
+  const m = safe % 60;
   if (h === 0) return `${m}分钟`;
   return `${h}小时${m > 0 ? `${m}分` : ''}`;
-}
-
-/**
- * 7 Days of realistic pre-seeded initial logs.
- * 数值字段全部从分期推演结果派生（deep/light/rem/awake/时长/得分互相自洽），
- * 手写的只有作息时间、潜伏期与叙事字段——此前手写常量与分期各算各的，
- * 分期总和比声明时长多 30-40 分钟、深睡最多差 61 分钟。
- */
-const DEMO_SPEC: Array<{
-  id: string;
-  date: string;
-  bedtime: string;
-  wakeTime: string;
-  latencyMinutes: number;
-  wakingMood: WakingMood;
-  preSleepHabits: string[];
-  dreamNotes?: string;
-}> = [
-  {
-    id: 'log-7',
-    date: '2026-09-22', // Last night
-    bedtime: '23:15',
-    wakeTime: '07:10',
-    latencyMinutes: 14,
-    wakingMood: 'refreshed',
-    preSleepHabits: ['reading', 'hot_bath', 'meditation'],
-    dreamNotes: '梦见在海边森林散步，微风徐徐，很舒服。',
-  },
-  { id: 'log-6', date: '2026-09-21', bedtime: '23:45', wakeTime: '07:00', latencyMinutes: 22, wakingMood: 'neutral', preSleepHabits: ['screen_time'] },
-  { id: 'log-5', date: '2026-09-20', bedtime: '00:20', wakeTime: '07:30', latencyMinutes: 28, wakingMood: 'tired', preSleepHabits: ['screen_time', 'caffeine'], dreamNotes: '赶公交车迟到的紧张梦境。' },
-  { id: 'log-4', date: '2026-09-19', bedtime: '23:30', wakeTime: '08:00', latencyMinutes: 12, wakingMood: 'refreshed', preSleepHabits: ['meditation', 'reading'] },
-  { id: 'log-3', date: '2026-09-18', bedtime: '23:10', wakeTime: '06:55', latencyMinutes: 16, wakingMood: 'neutral', preSleepHabits: ['hot_bath'] },
-  { id: 'log-2', date: '2026-09-17', bedtime: '01:05', wakeTime: '07:15', latencyMinutes: 35, wakingMood: 'groggy', preSleepHabits: ['screen_time', 'alcohol'] },
-  { id: 'log-1', date: '2026-09-16', bedtime: '23:00', wakeTime: '07:05', latencyMinutes: 15, wakingMood: 'refreshed', preSleepHabits: ['meditation'] },
-];
-
-export function getInitialSleepLogs(): SleepRecord[] {
-  return DEMO_SPEC.map((spec) => {
-    const gen = generateSleepStages(spec.bedtime, spec.wakeTime, spec.latencyMinutes);
-    const durationMinutes = gen.deepMinutes + gen.lightMinutes + gen.remMinutes; // 总窗 - 清醒
-    // 夜醒次数 = 除入睡潜伏期外的清醒段数
-    const wakeCount = Math.max(0, gen.stages.filter((s) => s.stage === 'awake').length - 1);
-    const { score, efficiency } = calculateSleepScore(
-      durationMinutes,
-      gen.deepMinutes,
-      gen.remMinutes,
-      gen.awakeMinutes,
-      wakeCount,
-      spec.latencyMinutes
-    );
-    return {
-      id: spec.id,
-      date: spec.date,
-      bedtime: spec.bedtime,
-      wakeTime: spec.wakeTime,
-      durationMinutes,
-      deepSleepMinutes: gen.deepMinutes,
-      lightSleepMinutes: gen.lightMinutes,
-      remSleepMinutes: gen.remMinutes,
-      awakeMinutes: gen.awakeMinutes,
-      sleepScore: score,
-      sleepEfficiency: efficiency,
-      latencyMinutes: spec.latencyMinutes,
-      wakeCount,
-      wakingMood: spec.wakingMood,
-      preSleepHabits: spec.preSleepHabits,
-      dreamNotes: spec.dreamNotes,
-      stages: gen.stages,
-      ...(spec.id === 'log-7'
-        ? {
-            soundEvents: [
-              { time: '02:40', decibel: 32, label: '翻身微动' },
-              { time: '05:15', decibel: 38, label: '轻微呼吸声' },
-            ],
-          }
-        : {}),
-    } as SleepRecord;
-  });
 }

@@ -3,7 +3,9 @@ import { Bell, Volume2, Sparkles, X, ChevronRight, Check, CloudRain, Waves, Flow
 import MoonDisc from './MoonDisc';
 import { getMoonInfo } from '../utils/moonPhase';
 import { sleepAudio } from '../utils/audioSynth';
-import { calculateSleepScore, generateSleepStages } from '../utils/sleepScore';
+import { clockAfter, DEFAULT_LATENCY_MINUTES } from '../utils/sleepScore';
+import { buildSleepRecord } from '../utils/sleepRecord';
+import { toLocalDateString, toLocalTimeString } from '../utils/dateUtils';
 import { SleepRecord, WakingMood } from '../types/sleep';
 import { ThemeConfig } from '../utils/themeStyles';
 
@@ -256,51 +258,26 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
     sleepAudio.stop();
     setIsAudioPlaying(false);
 
-    const endTime = new Date();
-    // Use actual real duration in minutes (minimum 1 minute), no fake 7.5h overwrite
-    const effectiveMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
+    const bedtimeStr = toLocalTimeString(startTime);
+    // 卧床时长取实测值（秒 → 分钟）；wakeTime 由 bedtime + 实测分钟数派生，
+    // 保证 bedtime→wakeTime 的跨度与实测值精确一致
+    const timeInBed = Math.max(1, Math.round(elapsedSeconds / 60));
+    const wakeTimeStr = clockAfter(bedtimeStr, timeInBed);
 
-    const bHour = String(startTime.getHours()).padStart(2, '0');
-    const bMin = String(startTime.getMinutes()).padStart(2, '0');
-    const wHour = String(endTime.getHours()).padStart(2, '0');
-    const wMin = String(endTime.getMinutes()).padStart(2, '0');
-
-    const bedtimeStr = `${bHour}:${bMin}`;
-    const wakeTimeStr = `${wHour}:${wMin}`;
-
-    const stagesData = generateSleepStages(bedtimeStr, wakeTimeStr);
-    const { score, efficiency } = calculateSleepScore(
-      effectiveMinutes,
-      stagesData.deepMinutes,
-      stagesData.remMinutes,
-      stagesData.awakeMinutes,
-      wakeCount,
-      14,
-      Math.round((targetDurationHours || 8) * 60)
-    );
-
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    const newRecord: SleepRecord = {
+    const newRecord: SleepRecord = buildSleepRecord({
       id: `sleep-${Date.now()}`,
-      date: dateStr,
+      date: toLocalDateString(),
       bedtime: bedtimeStr,
       wakeTime: wakeTimeStr,
-      durationMinutes: effectiveMinutes,
-      deepSleepMinutes: stagesData.deepMinutes,
-      lightSleepMinutes: stagesData.lightMinutes,
-      remSleepMinutes: stagesData.remMinutes,
-      awakeMinutes: stagesData.awakeMinutes,
-      sleepScore: score,
-      sleepEfficiency: efficiency,
-      latencyMinutes: 14,
+      // 实时监测未采集入睡潜伏期，这里用默认假设值（非实测，UI 已标注为估算）
+      latencyMinutes: DEFAULT_LATENCY_MINUTES,
+      // 晨检里用户自报的夜醒次数会真实反映到分期觉醒段数上
       wakeCount,
       wakingMood: selectedMood,
       preSleepHabits: selectedHabits,
-      dreamNotes: dreamNotes.trim() || undefined,
-      stages: stagesData.stages,
-    };
+      dreamNotes,
+      targetDurationMinutes: Math.round((targetDurationHours || 8) * 60),
+    });
 
     onFinishSleep(newRecord);
     onClose();
@@ -340,7 +317,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className={`text-xs font-medium ${theme.textSecondary}`}>极光睡眠监测中</span>
+          <span className={`text-xs font-medium ${theme.textSecondary}`}>极光睡眠 · 就寝记录中</span>
         </div>
         <button
           onClick={onClose}

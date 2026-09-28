@@ -4,7 +4,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { SleepRecord, UserProfile, DEFAULT_EYE_CARE } from './types/sleep';
-import { getInitialSleepLogs } from './utils/sleepScore';
+import { getInitialSleepLogs, isSleepRecordLike } from './utils/sleepRecord';
 import { TodayTab } from './components/TodayTab';
 import { TrendsTab } from './components/TrendsTab';
 import { AIAdvicePanel } from './components/AIAdvicePanel';
@@ -18,6 +18,20 @@ import { isNativePlatform, syncAlarmsToNative } from './utils/nativeAlarmSchedul
 import { applyEyeCare, eyeCareInAppStyles, isInEyeCareWindow } from './utils/eyeCare';
 import { LaunchSplash } from './components/LaunchSplash';
 
+/**
+ * localStorage 写入保护：配额超限时 setItem 会抛异常，
+ * 若在 useEffect 里冒泡出去会打断渲染、把整个 App 变成错误页。
+ */
+function safeLocalStorageSet(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    console.warn(`localStorage 写入失败（${key}）——可能已超出存储配额`, e);
+    return false;
+  }
+}
+
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('today');
   const [isActiveSleepOpen, setIsActiveSleepOpen] = useState(false);
@@ -30,10 +44,17 @@ export const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          // 过滤结构不合法的条目：否则下游 r.bedtime.split(':') 会直接抛错、整个 App 崩溃
+          const valid = parsed.filter(isSleepRecordLike);
+          if (valid.length !== parsed.length) {
+            console.warn(`已忽略 ${parsed.length - valid.length} 条结构损坏的睡眠记录`);
+          }
+          return valid;
+        }
       } catch (e) {
         console.error('Failed to parse saved records, backing up corrupted key:', e);
-        localStorage.setItem('somnacare_sleep_records_backup_corrupted', saved);
+        safeLocalStorageSet('somnacare_sleep_records_backup_corrupted', saved);
         return [];
       }
     }
@@ -108,11 +129,11 @@ export const App: React.FC = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('somnacare_sleep_records', JSON.stringify(records));
+    safeLocalStorageSet('somnacare_sleep_records', JSON.stringify(records));
   }, [records]);
 
   useEffect(() => {
-    localStorage.setItem('somnacare_user_profile', JSON.stringify(userProfile));
+    safeLocalStorageSet('somnacare_user_profile', JSON.stringify(userProfile));
   }, [userProfile]);
 
   // APK 启动时无条件同步一次闹钟到原生 AlarmManager（重启/重装后打开即恢复调度）
@@ -267,9 +288,27 @@ export const App: React.FC = () => {
               userProfile={userProfile}
               onUpdateProfile={(updated) => setUserProfile((prev) => ({ ...prev, ...updated }))}
               onResetDemoData={handleResetDemoData}
-              onImportRecords={(imported) => {
-                setRecords(imported);
-                showToast(`已成功导入 ${imported.length} 条睡眠记录`);
+              onImportRecords={(raw) => {
+                const valid = raw.filter(isSleepRecordLike);
+                const skipped = raw.length - valid.length;
+                if (valid.length === 0) {
+                  showToast('⚠️ 导入失败：文件里没有可识别的睡眠记录');
+                  return;
+                }
+                // 合并而非整体覆盖：此前直接 setRecords(imported) 会静默清掉现有数据
+                setRecords((prev) => {
+                  const byDate = new Map<string, SleepRecord>();
+                  for (const r of prev) byDate.set(r.date, r);
+                  for (const r of valid) byDate.set(r.date, r);
+                  return [...byDate.values()].sort(
+                    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+                  );
+                });
+                showToast(
+                  skipped > 0
+                    ? `已导入 ${valid.length} 条记录（跳过 ${skipped} 条无法识别）`
+                    : `已导入 ${valid.length} 条睡眠记录`
+                );
               }}
               theme={currentTheme}
             />

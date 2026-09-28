@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Moon, Clock, Sparkles, Check, Smartphone, Coffee, Bath, Flower2, BookOpen, Dumbbell, Wine, Utensils } from 'lucide-react';
 import { SleepRecord, WakingMood } from '../types/sleep';
-import { calculateSleepScore, generateSleepStages } from '../utils/sleepScore';
+import { buildSleepRecord } from '../utils/sleepRecord';
 import { ThemeConfig } from '../utils/themeStyles';
 
 interface ManualLogModalProps {
@@ -57,46 +57,19 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
   };
 
   const handleSave = () => {
-    const stagesData = generateSleepStages(bedtime, wakeTime);
-    const [bH, bM] = bedtime.split(':').map(Number);
-    const [wH, wM] = wakeTime.split(':').map(Number);
-
-    let startMs = new Date().setHours(bH, bM, 0, 0);
-    let endMs = new Date().setHours(wH, wM, 0, 0);
-    if (endMs <= startMs) {
-      endMs += 24 * 60 * 60 * 1000;
-    }
-    const totalDurationMinutes = Math.max(60, Math.round((endMs - startMs) / 60000) - stagesData.awakeMinutes);
-
-    const { score, efficiency } = calculateSleepScore(
-      totalDurationMinutes,
-      stagesData.deepMinutes,
-      stagesData.remMinutes,
-      stagesData.awakeMinutes,
-      wakeCount,
-      latencyMinutes,
-      Math.round((targetDurationHours || 8) * 60)
-    );
-
-    const record: SleepRecord = {
+    // 统一走 buildSleepRecord：时长=总睡眠、清醒=潜伏期+夜醒、分期与字段自洽
+    const record: SleepRecord = buildSleepRecord({
       id: `manual-${Date.now()}`,
       date,
       bedtime,
       wakeTime,
-      durationMinutes: totalDurationMinutes,
-      deepSleepMinutes: stagesData.deepMinutes,
-      lightSleepMinutes: stagesData.lightMinutes,
-      remSleepMinutes: stagesData.remMinutes,
-      awakeMinutes: stagesData.awakeMinutes,
-      sleepScore: score,
-      sleepEfficiency: efficiency,
       latencyMinutes,
       wakeCount,
       wakingMood: selectedMood,
       preSleepHabits: selectedHabits,
-      dreamNotes: dreamNotes.trim() || undefined,
-      stages: stagesData.stages,
-    };
+      dreamNotes,
+      targetDurationMinutes: Math.round((targetDurationHours || 8) * 60),
+    });
 
     onSaveRecord(record);
     onClose();

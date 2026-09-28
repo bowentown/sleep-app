@@ -28,6 +28,7 @@ function switchLauncherIcon(themeId: string) {
   }
 }
 import { getActiveModelLabel } from '../utils/localLlmEngine';
+import { toLocalDateString } from '../utils/dateUtils';
 
 // 作息目标联动工具：HH:MM ↔ 当日分钟数（跨午夜安全）
 const toMin = (t: string): number => {
@@ -120,7 +121,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(records, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `somnacare-sleep-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute('download', `somnacare-sleep-backup-${toLocalDateString()}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

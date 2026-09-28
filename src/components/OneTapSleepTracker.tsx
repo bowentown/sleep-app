@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Moon, Sun, AlertTriangle } from 'lucide-react';
 import { SleepRecord } from '../types/sleep';
-import { calculateSleepScore, generateSleepStages, formatDurationChinese } from '../utils/sleepScore';
+import { formatDurationChinese, clockAfter, DEFAULT_LATENCY_MINUTES } from '../utils/sleepScore';
+import { buildSleepRecord } from '../utils/sleepRecord';
+import { toLocalDateString, toLocalTimeString } from '../utils/dateUtils';
 import { ThemeConfig } from '../utils/themeStyles';
 
 interface OneTapSleepTrackerProps {
@@ -48,64 +50,26 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
     const startDate = new Date(sleepStartTime);
     const wakeDate = new Date();
 
-    const bedtimeStr = `${String(startDate.getHours()).padStart(2, '0')}:${String(
-      startDate.getMinutes()
-    ).padStart(2, '0')}`;
-    const wakeTimeStr = `${String(wakeDate.getHours()).padStart(2, '0')}:${String(
-      wakeDate.getMinutes()
-    ).padStart(2, '0')}`;
+    const bedtimeStr = toLocalTimeString(startDate);
+    // 卧床时长取实测值；wakeTime 由 bedtime + 实测分钟数派生，
+    // 保证 bedtime→wakeTime 的跨度与实测值精确一致（否则秒级取整会让效率偏 1%）
+    const timeInBed = Math.max(1, Math.round((wakeDate.getTime() - sleepStartTime) / 60000));
+    const wakeTimeStr = clockAfter(bedtimeStr, timeInBed);
+    const isMicroSession = timeInBed < 15;
 
-    // STRICT REALISTIC CALCULATION: EXACT DURATION, NO 7.5h OVERWRITE BUG
-    const exactDurationMinutes = Math.max(1, Math.round((wakeDate.getTime() - sleepStartTime) / 60000));
-
-    const generated = generateSleepStages(bedtimeStr, wakeTimeStr);
-
-    // If sleep is genuinely short (< 60m, e.g. quick test or micro-nap), accurately scale stages
-    let deepMin = generated.deepMinutes;
-    let remMin = generated.remMinutes;
-    let awakeMin = generated.awakeMinutes;
-    let lightMin = generated.lightMinutes;
-
-    if (exactDurationMinutes < 90) {
-      // Micro-sleep or brief testing
-      deepMin = Math.max(0, Math.round(exactDurationMinutes * 0.1));
-      remMin = 0;
-      awakeMin = Math.min(2, exactDurationMinutes);
-      lightMin = Math.max(1, exactDurationMinutes - deepMin - awakeMin);
-    }
-
-    const { score, efficiency } = calculateSleepScore(
-      exactDurationMinutes,
-      deepMin,
-      remMin,
-      awakeMin,
-      exactDurationMinutes < 15 ? 0 : 1,
-      exactDurationMinutes < 15 ? 2 : 12,
-      Math.round((targetDurationHours || 8) * 60)
-    );
-
-    // 本地日期（此前 toISOString 是 UTC：早 6-9 点醒来会落到 UTC 前一天，跨夜记录互相覆盖）
-    const nowLocal = new Date();
-    const recordDate = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}`;
-
-    const newRecord: SleepRecord = {
+    const newRecord: SleepRecord = buildSleepRecord({
       id: `onetap-${Date.now()}`,
-      date: recordDate,
+      // 本地日期（此前是 toISOString 的 UTC 日期：早 6-9 点醒来会落到 UTC 前一天，
+      // 跨夜两条记录算出同一 date，被 App 的去重逻辑静默覆盖）
+      date: toLocalDateString(wakeDate),
       bedtime: bedtimeStr,
       wakeTime: wakeTimeStr,
-      durationMinutes: exactDurationMinutes,
-      deepSleepMinutes: deepMin,
-      lightSleepMinutes: lightMin,
-      remSleepMinutes: remMin,
-      awakeMinutes: awakeMin,
-      sleepScore: score,
-      sleepEfficiency: efficiency,
-      latencyMinutes: exactDurationMinutes < 15 ? 2 : 12,
-      wakeCount: exactDurationMinutes < 15 ? 0 : 1,
-      wakingMood: exactDurationMinutes < 30 ? 'tired' : 'refreshed',
+      latencyMinutes: isMicroSession ? 2 : DEFAULT_LATENCY_MINUTES,
+      wakeCount: isMicroSession ? 0 : 1,
+      wakingMood: timeInBed < 30 ? 'tired' : 'refreshed',
       preSleepHabits: [],
-      stages: generated.stages,
-    };
+      targetDurationMinutes: Math.round((targetDurationHours || 8) * 60),
+    });
 
     localStorage.removeItem('somnacare_bedtime_start');
     setSleepStartTime(null);
@@ -148,7 +112,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
               onClick={handleStartSleep}
               className={`w-full py-3.5 px-5 rounded-2xl ${theme.accentBg} text-white font-black text-xs tracking-wider flex items-center justify-center gap-2 active:scale-[0.99] transition-all cursor-pointer shadow-lg`}
             >
-              <span>轻按开启今夜就寝监测</span>
+              <span>轻按开启今夜就寝记录</span>
               <span className="text-sm">→</span>
             </button>
           </div>

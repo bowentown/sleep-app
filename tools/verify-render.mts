@@ -108,19 +108,57 @@ for (const [label, record] of cases) {
   const html = render('TrendsTab(4条边界记录)',
     React.createElement(TrendsTab, { records, theme, initialViewMode: 'stages' }));
 
-  // 堆叠条是唯一输出 height:N% 的地方（折线图用 SVG 坐标，不是百分比高度）
-  const heights = [...html.matchAll(/height:([\d.]+)%/g)].map((m) => Number(m[1]));
+  // 分段由 data-stage 定位。原先靠 style="height:N%" 反推，但 3.1 之后
+  // 柱容器本身也带 height:%（用它编码当晚卧床时长），于是容器会被当成
+  // 第 5 段，四段之和随之算成 193% 之类。属性匹配不受结构变化影响。
+  const segTags = [...html.matchAll(/<div[^>]*data-stage="(deep|light|rem|awake)"[^>]*>/g)].map((m) => m[0]);
+  const segHeights = segTags.map((t) => {
+    const m = t.match(/height:([\d.]+)%/);
+    return m ? Number(m[1]) : NaN;
+  });
 
-  check('堆叠条分段数为 4×记录数', heights.length === records.length * 4,
-    `期望 ${records.length * 4} 段，实际 ${heights.length} 段`);
+  check('堆叠条分段数为 4×记录数', segTags.length === records.length * 4,
+    `期望 ${records.length * 4} 段，实际 ${segTags.length} 段`);
 
-  const totalDays = Math.floor(heights.length / 4);
+  const totalDays = Math.floor(segHeights.length / 4);
   for (let d = 0; d < totalDays; d++) {
-    const group = heights.slice(d * 4, d * 4 + 4);
+    const group = segHeights.slice(d * 4, d * 4 + 4);
     const sum = group.reduce((a, b) => a + b, 0);
     // 浮点误差容忍 0.05%
     check(`第 ${d + 1} 天睡眠结构四段之和 = 100%`, Math.abs(sum - 100) < 0.05,
       `实际 ${sum.toFixed(2)}%（${group.map((g) => g.toFixed(1)).join(' + ')}）——分母用错会导致 >100% 被裁切`);
+  }
+
+  // ---- 柱高必须编码当晚卧床时长 ----
+  // 曾经每根柱子都写死 h-20，高度完全相同，于是「哪晚睡得少」在这张图上
+  // 完全看不出来。现在柱高 = 卧床时长归一，所以：最长的一晚占满 100%，
+  // 且各柱高度之比必须等于各自卧床时长之比。
+  const barHeights = [...html.matchAll(/<div style="height:([\d.]+)%"[^>]*class="[^"]*overflow-hidden flex flex-col-reverse/g)]
+    .map((m) => Number(m[1]));
+  if (barHeights.length === records.length) {
+    const distinct = new Set(barHeights.map((h) => h.toFixed(1)));
+    check('柱高不再恒定（高度通道用于编码时长）', distinct.size > 1,
+      `出现 ${distinct.size} 种高度：${[...distinct].join(', ')}——若为 1 说明又退回等高柱`);
+
+    // 组件会先按日期倒序取近 7 条、再 reverse 成时间正序来画，
+    // 所以这里的卧床时长序列必须按同样的顺序排，否则比值对不上。
+    const ordered = [...records].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const tibs = ordered.map((r) => r.durationMinutes + r.awakeMinutes);
+    const maxTib = Math.max(...tibs);
+    const maxBar = Math.max(...barHeights);
+    check('最高的一晚柱高 = 100%', Math.abs(maxBar - 100) < 0.05, `实际 ${maxBar.toFixed(2)}%`);
+
+    const ratiosOk = barHeights.every((h, i) => {
+      const expected = Math.max(12, (tibs[i] / maxTib) * 100);
+      return Math.abs(h - expected) < 0.05;
+    });
+    check('柱高与卧床时长成正比', ratiosOk,
+      `柱高 ${barHeights.map((h) => h.toFixed(1)).join(', ')} vs 卧床 ${tibs.join(', ')} 分钟`);
+  } else {
+    check('柱高必须编码当晚卧床时长', false,
+      `找到 ${barHeights.length} 根柱子，期望 ${records.length} 根`);
   }
 
   // ---- 图例顺序必须与堆叠顺序一致 ----
@@ -134,7 +172,7 @@ for (const [label, record] of cases) {
     return cls ? cls[1] : null;
   };
 
-  const stackTags = [...html.matchAll(/<div[^>]*style="height:[\d.]+%[^"]*"[^>]*>/g)].map((m) => m[0]);
+  const stackTags = segTags;
   const swatchTags = [...html.matchAll(/<span[^>]*w-2\.5 h-2\.5 rounded-sm[^>]*>/g)].map((m) => m[0]);
 
   check('找到 4 个图例色块', swatchTags.length === 4, `实际 ${swatchTags.length} 个`);

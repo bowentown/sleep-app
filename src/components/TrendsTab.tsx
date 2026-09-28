@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { SleepRecord } from '../types/sleep';
 import { formatDurationChinese } from '../utils/sleepScore';
+import { SLEEP_STAGE_COLORS } from '../utils/sleepStageColors';
 import { ThemeConfig } from '../utils/themeStyles';
 
 interface TrendsTabProps {
@@ -54,6 +55,13 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
   );
   const last7Records = sortedRecords.slice(0, 7).reverse(); // 转为时间正序，供画图
   const weekCount = last7Records.length;
+
+  // 分期比例的柱高按卧床时长归一。至少取 1 避免除零；
+  // 全部为 0 时每根都会是 0/1 → 触发展示层 12% 的下限，不会消失。
+  const maxStageTotal = Math.max(
+    1,
+    ...last7Records.map((r) => r.durationMinutes + r.awakeMinutes)
+  );
 
   // 概览数字必须与「近7日」这个标签同口径：此前用的是全部记录，
   // 于是攒了 30 天数据后这里显示的是 30 天均值，标签与数据不符。
@@ -116,7 +124,9 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         <div className={`${theme.cardBg} rounded-2xl p-3 border ${theme.cardBorder} text-center`}>
           <span className={`text-[11px] font-medium ${theme.textMuted} block`}>日均睡眠</span>
           <span className="text-xl font-black font-mono text-white tabular-nums">
-            {(avgDuration / 60).toFixed(1)}h
+            {/* 全 app 其它地方都写「7小时36分」，这里原本是「7.0h」，
+                同一个量在两处用了不同单位。 */}
+            {formatDurationChinese(avgDuration)}
           </span>
         </div>
 
@@ -326,6 +336,10 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         {viewMode === 'stages' && (
           <div className="space-y-2 animate-in fade-in">
             <div className={`min-h-[10rem] ${theme.cardInnerBg} rounded-2xl p-3 border ${theme.cardInnerBorder} flex flex-col justify-between`}>
+              {/* 柱高 = 卧床时长。原先每根柱子都写死 h-20，于是高度完全相同，
+                  「哪晚睡得少」这个最该看出来的信息在这张图上完全看不见
+                  （演示数据里最长和最短差了好几个小时）。高度是最强的视觉通道，
+                  现在用它编码时长，颜色分段继续编码构成比例。 */}
               <div className="flex items-end justify-between gap-2 h-28 px-1">
                 {last7Records.map((r) => {
                   // 四段是「深睡/浅睡/REM/清醒」——这是对整夜卧床时间的完整划分，
@@ -338,6 +352,9 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                   const lightPct = (r.lightSleepMinutes / total) * 100;
                   const awakePct = (r.awakeMinutes / total) * 100;
                   const isHovered = activeRecord?.id === r.id;
+                  // 最高的一晚占满可绘区，其余按比例。下限 12% 保证极短的
+                  // 夜晚仍然可见（否则 2 小时的柱子会细成一条线）。
+                  const heightPct = Math.max(12, (total / maxStageTotal) * 100);
 
                   return (
                     <div
@@ -345,19 +362,28 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                       onClick={() => setHoveredRecord(r)}
                       className="flex-1 flex flex-col items-center h-full justify-end cursor-pointer group"
                     >
-                      <div
-                        className={`w-full max-w-[24px] h-20 rounded-md overflow-hidden flex flex-col-reverse ${
-                          isHovered ? 'ring-2 ring-indigo-400 shadow' : ''
-                        }`}
-                      >
-                        <div style={{ height: `${deepPct}%`, backgroundColor: theme.accentHex }} />
-                        <div style={{ height: `${lightPct}%` }} className="bg-sky-400" />
-                        <div style={{ height: `${remPct}%` }} className="bg-indigo-300" />
-                        <div style={{ height: `${awakePct}%` }} className="bg-rose-400" />
+                      <div className="w-full flex-1 min-h-0 flex items-end justify-center">
+                        <div
+                          style={{ height: `${heightPct}%` }}
+                          className={`w-full max-w-[24px] rounded-md overflow-hidden flex flex-col-reverse ${
+                            isHovered ? 'ring-2 ring-indigo-400 shadow' : ''
+                          }`}
+                        >
+                          {/* data-stage 供渲染层断言定位分段：柱容器本身也带
+                              height:%（编码时长），只靠 style 匹配会把它算成一段。 */}
+                          <div data-stage="deep" style={{ height: `${deepPct}%` }} className={SLEEP_STAGE_COLORS.deep.className} />
+                          <div data-stage="light" style={{ height: `${lightPct}%` }} className={SLEEP_STAGE_COLORS.light.className} />
+                          <div data-stage="rem" style={{ height: `${remPct}%` }} className={SLEEP_STAGE_COLORS.rem.className} />
+                          <div data-stage="awake" style={{ height: `${awakePct}%` }} className={SLEEP_STAGE_COLORS.awake.className} />
+                        </div>
                       </div>
 
+                      {/* 日期始终显示。曾试过把日期换成「7小时55分」，但每根柱子
+                          只有约 40px 宽，7 个字会压到相邻列；而且 hoveredRecord 在
+                          点击后是持续保留的，触屏上点一下就会一直看不到日期。
+                          具体数字改到图下方那行明细里给出。 */}
                       <span
-                        className={`text-[9px] font-mono mt-1 ${
+                        className={`text-[9px] font-mono mt-1 whitespace-nowrap ${
                           isHovered ? accentText + ' font-bold' : textMuted
                         }`}
                       >
@@ -368,24 +394,36 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                 })}
               </div>
 
+              {/* 选中那晚的明细。柱子只能表达比例，具体数字放这里，
+                  不再往 40px 宽的列里塞。默认显示最近一晚，点柱子可切换。 */}
+              <div className={`mt-2 text-[10px] font-mono ${textSecondary} flex flex-wrap justify-center gap-x-2 gap-y-0.5`}>
+                <span className={`${accentText} font-bold`}>{activeRecord.date.slice(5)}</span>
+                <span>卧床 {formatDurationChinese(activeRecord.durationMinutes + activeRecord.awakeMinutes)}</span>
+                <span className={textMuted}>·</span>
+                <span>总睡眠 {formatDurationChinese(activeRecord.durationMinutes)}</span>
+              </div>
+
               <div className={`flex flex-col items-center gap-1 pt-1 border-t ${innerBorder} text-[10px] ${textSecondary}`}>
                 {/* 图例顺序必须与柱子的堆叠顺序一致（自下而上 深睡→浅睡→REM→清醒），
-                    否则读者会以为图例是从上往下对应的。 */}
+                    否则读者会以为图例是从上往下对应的。
+                    颜色统一来自 utils/sleepStageColors：这里原先「深睡」用的是
+                    主题色，导致同一阶段在四个主题下分别是靛蓝/浅灰/黄/青。 */}
                 <div className="flex justify-center gap-3">
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: theme.accentHex }} />深睡
+                    <span className={`w-2.5 h-2.5 rounded-sm ${SLEEP_STAGE_COLORS.deep.className}`} />深睡
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-sky-400" />浅睡
+                    <span className={`w-2.5 h-2.5 rounded-sm ${SLEEP_STAGE_COLORS.light.className}`} />浅睡
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-indigo-300" />REM
+                    <span className={`w-2.5 h-2.5 rounded-sm ${SLEEP_STAGE_COLORS.rem.className}`} />REM
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-rose-400" />清醒
+                    <span className={`w-2.5 h-2.5 rounded-sm ${SLEEP_STAGE_COLORS.awake.className}`} />清醒
                   </span>
                 </div>
-                <span className={`text-[9px] ${textMuted} font-sans`}>
+                <span className={`text-[9px] ${textMuted} font-sans text-center`}>
+                  柱高 = 当晚卧床时长，色块 = 各阶段占比（四段合计 100%）<br />
                   * 睡眠分期为基于作息起止点与超昼夜节律的模型估算值，非临床医疗设备检测
                 </span>
               </div>

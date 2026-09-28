@@ -11,7 +11,7 @@ import { SleepHypnogram } from './SleepHypnogram';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { OneTapSleepTracker } from './OneTapSleepTracker';
 import { ThemeConfig } from '../utils/themeStyles';
-import { buildMorningSummary } from '../utils/sleepInsights';
+import { buildMorningSummary, describeDelta, minutesSinceNoon } from '../utils/sleepInsights';
 
 interface TodayTabProps {
   records: SleepRecord[];
@@ -150,12 +150,17 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                 </span>
               </div>
               {userProfile.targetBedtime && (() => {
-                const [bh, bm] = latestRecord.bedtime.split(':').map(Number);
-                const [th, tm] = userProfile.targetBedtime.split(':').map(Number);
-                let diff = bh * 60 + bm - (th * 60 + tm);
-                if (diff > 720) diff -= 1440;
-                if (diff < -720) diff += 1440;
-                const txt = diff === 0 ? '与目标一致' : diff > 0 ? `晚于目标 ${diff} 分钟` : `早于目标 ${-diff} 分钟`;
+                // 复用 utils/sleepInsights 的跨午夜换算与差值文案。
+                // 这里原本自己写了一套 ±720 分钟的启发式来纠正跨午夜，是同一件事的
+                // 第二份实现；而且它把 193 分钟直接显示成「193 分钟」，与同一张卡里
+                // 一句话总结和时间轴用的「3小时13分」不是一个口径。
+                // describeDelta 的容差是 10 分钟，与时间轴保持一致，避免同一张卡
+                // 两处对同一个 6 分钟差异给出不同说法（一处「基本准时」一处「晚 6 分钟」）。
+                const bedMin = minutesSinceNoon(latestRecord.bedtime);
+                const targetMin = minutesSinceNoon(userProfile.targetBedtime);
+                if (!Number.isFinite(bedMin) || !Number.isFinite(targetMin)) return null;
+                const diff = bedMin - targetMin;
+                const txt = describeDelta(diff);
                 return (
                   <div className="flex items-baseline justify-between">
                     <span className="text-slate-300 font-bold">就寝 vs 目标</span>

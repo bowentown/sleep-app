@@ -162,7 +162,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
       : '已关闭';
 
   return (
-    <div className={`space-y-4 pb-28 ${theme.textPrimary}`}>
+    <div className={`space-y-4 ${theme.textPrimary}`}>
       {/* 1. 总开关 + 状态 */}
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3`}>
         <div className="flex items-center justify-between">

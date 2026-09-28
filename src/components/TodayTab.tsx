@@ -62,7 +62,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   const scoreInfo = latestRecord ? getScoreColor(latestRecord.sleepScore) : getScoreColor(85);
 
   return (
-    <div className={`space-y-4 pb-28 ${theme.textPrimary}`}>
+    <div className={`space-y-4 ${theme.textPrimary}`}>
       {/* 1. Primary One-Tap Sleep Tracker */}
       {onSaveRecord && <OneTapSleepTracker onSaveRecord={onSaveRecord} theme={theme} targetDurationHours={userProfile.targetDurationHours} />}
 

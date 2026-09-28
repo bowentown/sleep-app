@@ -247,8 +247,11 @@ export const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Tab View Container（key 重挂载触发 180ms 淡入上浮动效） */}
-        <main key={activeTab} className="animate-tab-fade-in p-4 space-y-4 flex-1">
+        {/* Tab View Container（key 重挂载触发 180ms 淡入上浮动效）
+            导航栏是 fixed 定位，底部让位统一由这里的 pb-28 负责：
+            原先 5 个页签根节点各写一遍 pb-28，改导航高度时得记得改 5 处。
+            flex flex-col 让「内容比视口短」的页签可以用 my-auto 或 h-full 撑开。 */}
+        <main key={activeTab} className="animate-tab-fade-in px-4 pt-4 pb-28 space-y-4 flex-1 flex flex-col">
           {activeTab === 'today' && (
             <TodayTab
               records={records}

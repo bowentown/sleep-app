@@ -306,8 +306,15 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
     }
   };
 
+  // 只有问候语 = 还没开始对话。此时把快捷提问铺进消息区当欢迎列表用，
+  // 否则卡片撑满屏幕后中间会留一大片空白（原先固定 h-[460px] 也盖不住）。
+  const isFreshChat = chatMessages.length <= 1;
+
   return (
-    <div className={`space-y-3 pb-28 ${theme.textPrimary}`}>
+    // flex-1 min-h-0（而不是 h-full）让根节点占满 main 剩下的高度：
+    // main 是 flex 列容器，h-full 的百分比高度在实测中解析不到，
+    // 会导致下面的 flex-1 卡片塌缩成内容高度。
+    <div className={`space-y-3 flex flex-col flex-1 min-h-0 ${theme.textPrimary}`}>
       {/* 1. Concise Assessment Banner */}
       <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} flex items-center justify-between gap-3`}>
         <div className="flex-1 min-w-0">
@@ -359,10 +366,12 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
         </div>
       )}
 
-      {/* 2. Interactive AI Consultation Chat */}
-      <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} flex flex-col h-[460px]`}>
+      {/* 2. Interactive AI Consultation Chat
+          flex-1 + min-h-0 让卡片占满页签剩下的高度，消息区自己滚动。
+          原先写死 h-[460px]：视口高时下方留空，视口矮时又得整页滚。 */}
+      <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} flex flex-col flex-1 min-h-0`}>
         {/* Message feed */}
-        <div className="flex-1 overflow-y-auto py-2 space-y-3 pr-1 text-xs no-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-3 pr-1 text-xs no-scrollbar">
           {chatMessages.map((msg) => (
             <div
               key={msg.id}
@@ -402,22 +411,46 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
               )}
             </div>
           )}
+
+          {/* 全新对话：把快捷提问铺在消息区里，顺便把空白用「能问什么」填上 */}
+          {isFreshChat && (
+            <div className="pt-2 space-y-2">
+              <p className="text-[10px] text-slate-500 font-mono">不知道从哪问起？试试这些：</p>
+              {QUICK_PROMPTS.map((prompt, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleSendMessage(prompt)}
+                  disabled={isSendingChat}
+                  className={`w-full text-left text-xs px-3.5 py-2.5 rounded-xl ${theme.cardInnerBg} hover:opacity-80 text-slate-300 border ${theme.cardInnerBorder} transition-all cursor-pointer disabled:opacity-50`}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Quick prompt suggestions — 换行而非横向滚动：隐藏滚动条会让被截断的 chip 看起来像故障 */}
-        <div className="py-2 flex flex-wrap items-center gap-1.5 shrink-0">
-          {QUICK_PROMPTS.map((prompt, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleSendMessage(prompt)}
-              disabled={isSendingChat}
-              className={`text-xs whitespace-nowrap px-3 py-1 rounded-full ${theme.cardInnerBg} hover:opacity-80 text-slate-300 border ${theme.cardInnerBorder} transition-all cursor-pointer disabled:opacity-50`}
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
+        {/* Quick prompt suggestions — 只在对话开始后出现。
+            换行而非横向滚动：隐藏滚动条会让被截断的 chip 看起来像故障。
+            全新对话时这几条已经铺在消息区里了，再显示一遍是重复。
+            这里用条件渲染而不是 hidden：flex 与 hidden 都设 display，
+            谁生效取决于 Tailwind 的生成顺序，不可靠。 */}
+        {!isFreshChat && (
+          <div className="py-2 flex flex-wrap items-center gap-1.5 shrink-0 border-t border-slate-700/50">
+            {QUICK_PROMPTS.map((prompt, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSendMessage(prompt)}
+                disabled={isSendingChat}
+                className={`text-xs whitespace-nowrap px-3 py-1 rounded-full ${theme.cardInnerBg} hover:opacity-80 text-slate-300 border ${theme.cardInnerBorder} transition-all cursor-pointer disabled:opacity-50`}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Chat input box */}
         <div className="pt-2.5 border-t border-slate-700/50 flex items-center gap-2 shrink-0">

@@ -157,7 +157,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   };
 
   return (
-    <div className={`space-y-4 pb-28 ${theme.textPrimary}`}>
+    <div className={`space-y-4 ${theme.textPrimary}`}>
       {/* 1. Theme Color Palette Section */}
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3.5`}>
         <div className="flex items-center justify-between pb-2.5 border-b border-slate-700/60">

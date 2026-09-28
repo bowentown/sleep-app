@@ -105,7 +105,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
   const chartBgHex = theme.cardInnerBg.match(/#[0-9a-fA-F]{3,8}/)?.[0] ?? '#0c1222';
 
   return (
-    <div className={`space-y-3 pb-28 ${theme.textPrimary}`}>
+    <div className={`space-y-3 ${theme.textPrimary}`}>
       {/* 1. Concise Overview Numbers */}
       <div className="grid grid-cols-3 gap-2">
         <div className={`${theme.cardBg} rounded-2xl p-3 border ${theme.cardBorder} text-center`}>
@@ -369,15 +369,17 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               </div>
 
               <div className={`flex flex-col items-center gap-1 pt-1 border-t ${innerBorder} text-[10px] ${textSecondary}`}>
+                {/* 图例顺序必须与柱子的堆叠顺序一致（自下而上 深睡→浅睡→REM→清醒），
+                    否则读者会以为图例是从上往下对应的。 */}
                 <div className="flex justify-center gap-3">
                   <span className="flex items-center gap-1">
                     <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: theme.accentHex }} />深睡
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-indigo-300" />REM
+                    <span className="w-2.5 h-2.5 rounded-sm bg-sky-400" />浅睡
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-sky-400" />浅睡
+                    <span className="w-2.5 h-2.5 rounded-sm bg-indigo-300" />REM
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2.5 h-2.5 rounded-sm bg-rose-400" />清醒

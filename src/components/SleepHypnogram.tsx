@@ -23,10 +23,21 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
   const stages = record.stages || [];
   const totalMin = record.durationMinutes + record.awakeMinutes;
 
+  // 占卧床时长（TIB）：四段之和恒为 100%，用于堆叠条与泳道图——它们划分的是整夜卧床。
   const deepPercent = totalMin > 0 ? Math.round((record.deepSleepMinutes / totalMin) * 100) : 0;
   const remPercent = totalMin > 0 ? Math.round((record.remSleepMinutes / totalMin) * 100) : 0;
   const lightPercent = totalMin > 0 ? Math.round((record.lightSleepMinutes / totalMin) * 100) : 0;
   const awakePercent = totalMin > 0 ? Math.round((record.awakeMinutes / totalMin) * 100) : 0;
+
+  // 占总睡眠时长（TST）：深睡/REM 的临床目标区间（约 13–23% / 20–25%）是按 TST 定义的，
+  // 所以「目标 >18%」这类对照必须用这一套；同时与 TodayTab 的「深睡阶段 xx%」同口径。
+  // 混用两套分母会让同一屏出现两个数（95 分深睡曾同时显示 21% 和 20%）。
+  const tstMin = record.durationMinutes;
+  const shareOfTst = (minutes: number) =>
+    tstMin > 0 ? Math.round((minutes / tstMin) * 100) : 0;
+  const deepShareOfTst = shareOfTst(record.deepSleepMinutes);
+  const lightShareOfTst = shareOfTst(record.lightSleepMinutes);
+  const remShareOfTst = shareOfTst(record.remSleepMinutes);
 
   // Pre-calculate SVG stage blocks
   const startX = 40;
@@ -136,7 +147,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
               <span className={`text-xs ${textSecondary} font-medium`}>深睡</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.deepSleepMinutes}分</span>
-            <span className="text-[10px] text-indigo-300 font-mono font-medium">{deepPercent}% (目标&gt;18%)</span>
+            <span className="text-[10px] text-indigo-300 font-mono font-medium">{deepShareOfTst}% (目标&gt;18%)</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
@@ -145,7 +156,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
               <span className={`text-xs ${textSecondary} font-medium`}>浅睡</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.lightSleepMinutes}分</span>
-            <span className="text-[10px] text-sky-300 font-mono font-medium">{lightPercent}%</span>
+            <span className="text-[10px] text-sky-300 font-mono font-medium">{lightShareOfTst}%</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
@@ -154,7 +165,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
               <span className={`text-xs ${textSecondary} font-medium`}>REM</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.remSleepMinutes}分</span>
-            <span className="text-[10px] text-indigo-300 font-mono font-medium">{remPercent}% (目标&gt;20%)</span>
+            <span className="text-[10px] text-indigo-300 font-mono font-medium">{remShareOfTst}% (目标&gt;20%)</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
@@ -163,9 +174,14 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
               <span className={`text-xs ${textSecondary} font-medium`}>清醒</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.awakeMinutes}分</span>
-            <span className="text-[10px] text-rose-300 font-mono font-medium">{awakePercent}%</span>
+            <span className="text-[10px] text-rose-300 font-mono font-medium">占卧床 {awakePercent}%</span>
           </div>
         </div>
+
+        <p className={`mt-2 text-[9px] ${textMuted} leading-relaxed`}>
+          深睡 / 浅睡 / REM 占比为占「总睡眠时长」，与临床目标同口径；清醒为占「卧床时长」。
+          上方堆叠条按卧床时长划分，四段合计 100%。
+        </p>
       </div>
     </div>
   );

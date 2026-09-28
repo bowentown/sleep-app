@@ -61,10 +61,10 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
   const localGenAbortRef = useRef<AbortController | null>(null);
 
   const QUICK_PROMPTS = [
-    '为什么我深睡眠比例偏低？怎么提升？',
-    '入睡困难，如何在20分钟内睡着？',
-    '半夜3-4点容易醒来，该如何应对？',
-    '下午喝茶对睡眠影响有多大？',
+    '深睡比例偏低怎么提升？',
+    '如何快速入睡？',
+    '半夜容易醒怎么办？',
+    '下午喝茶影响睡眠吗？',
   ];
 
   const fetchAIAnalysis = async () => {
@@ -309,8 +309,8 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
   return (
     <div className={`space-y-3 pb-28 ${theme.textPrimary}`}>
       {/* 1. Concise Assessment Banner */}
-      <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} flex items-center justify-between`}>
-        <div>
+      <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} flex items-center justify-between gap-3`}>
+        <div className="flex-1 min-w-0">
           <h3 className="text-xs font-bold text-white">睡眠医学评估</h3>
           <p className="text-[11px] text-slate-400 mt-0.5">模型：{activeProviderName} · 评分为模型估算，非医疗诊断</p>
         </div>
@@ -319,7 +319,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
           type="button"
           onClick={fetchAIAnalysis}
           disabled={isLoadingAnalysis}
-          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow active:scale-95"
+          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow active:scale-95 shrink-0 whitespace-nowrap"
         >
           {isLoadingAnalysis ? (
             <>
@@ -404,15 +404,15 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
           )}
         </div>
 
-        {/* Quick prompt suggestions */}
-        <div className="py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+        {/* Quick prompt suggestions — 换行而非横向滚动：隐藏滚动条会让被截断的 chip 看起来像故障 */}
+        <div className="py-2 flex flex-wrap items-center gap-1.5 shrink-0">
           {QUICK_PROMPTS.map((prompt, i) => (
             <button
               key={i}
               type="button"
               onClick={() => handleSendMessage(prompt)}
               disabled={isSendingChat}
-              className={`text-xs whitespace-nowrap px-3 py-1 rounded-full ${theme.cardInnerBg} hover:opacity-80 text-slate-300 border ${theme.cardInnerBorder} transition-all shrink-0 cursor-pointer`}
+              className={`text-xs whitespace-nowrap px-3 py-1 rounded-full ${theme.cardInnerBg} hover:opacity-80 text-slate-300 border ${theme.cardInnerBorder} transition-all cursor-pointer disabled:opacity-50`}
             >
               {prompt}
             </button>

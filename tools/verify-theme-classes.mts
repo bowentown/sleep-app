@@ -1,11 +1,15 @@
 /**
- * 校验主题里的颜色类是否真的生成了 CSS。
+ * 校验颜色类是否真的生成了 CSS。
  *
  * 起因：themeStyles.ts 里 cardInnerBorder 写的是 border-slate-850，
  * 而 Tailwind 4 的 slate 调色板只有 800/900——这个类名不存在，生成不出任何规则。
  * 类名静默失效后 border-color 回退成 currentColor，于是本该「几乎看不见的
  * 深色描边」在深色主题下渲染成了纯白描边。构建成功、tsc 通过、运行时也不报错，
  * 只能靠比对构建产物才能发现。
+ *
+ * 扫描范围包含 sleepStageColors.ts：分期配色同样是一串写死的类名
+ * （bg-pink-600 / bg-orange-300 之类），写错一位就会静默失效，
+ * 而且在那里失效意味着图表某一段直接没有背景色。
  *
  * 必须在 npm run build 之后运行（读的是 dist 里的 CSS）。
  */
@@ -15,7 +19,11 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const distAssets = join(root, 'dist', 'assets');
-const themeFile = join(root, 'src', 'utils', 'themeStyles.ts');
+// 存放颜色类名清单的源文件
+const sourceFiles = [
+  join(root, 'src', 'utils', 'themeStyles.ts'),
+  join(root, 'src', 'utils', 'sleepStageColors.ts'),
+];
 
 const failures: string[] = [];
 let pass = 0;
@@ -31,13 +39,13 @@ if (cssFiles.length === 0) {
   process.exit(1);
 }
 const css = cssFiles.map((f) => readFileSync(join(distAssets, f), 'utf8')).join('\n');
-const src = readFileSync(themeFile, 'utf8');
 
-// 收集主题里出现的所有颜色类名
+// 收集颜色类名。两份来源的写法不同，分别解析：
+//   themeStyles.ts     field: 'bg-slate-900 border-slate-700/80 ...'
+//   sleepStageColors.ts  deep: { hex: '#4f46e5', className: 'bg-indigo-600', ... }
 const tokens = new Set<string>();
 const fieldOf = new Map<string, Set<string>>();
-for (const m of src.matchAll(/^\s*(\w+):\s*'([^']*)'/gm)) {
-  const [, field, value] = m;
+const collect = (value: string, field: string) => {
   for (const t of value.split(/\s+/)) {
     if (!/^(bg|text|border|ring|from|to|via|fill|stroke|divide|outline|accent|caret|decoration|placeholder)-/.test(t)) {
       continue;
@@ -45,6 +53,24 @@ for (const m of src.matchAll(/^\s*(\w+):\s*'([^']*)'/gm)) {
     tokens.add(t);
     if (!fieldOf.has(t)) fieldOf.set(t, new Set());
     fieldOf.get(t)!.add(field);
+  }
+};
+
+for (const file of sourceFiles) {
+  const src = readFileSync(file, 'utf8');
+  const short = file.slice(root.length + 1);
+  // 按文件用锚定的精确模式，避免把注释里提到的类名（比如解释旧 bug 时
+  // 写的 border-slate-850）当成真实使用而误报。
+  const patterns: [RegExp, number, number][] = [
+    // themeStyles.ts:  cardBg: 'bg-slate-900/80 border-slate-700/80'
+    [/^[ \t]*(\w+):[ \t]*'([^']*)'/gm, 1, 2],
+    // sleepStageColors.ts:  deep: { hex: '#4f46e5', className: 'bg-indigo-600', ... }
+    [/^[ \t]*(\w+):[ \t]*\{[^}]*className:[ \t]*'([^']*)'/gm, 1, 2],
+  ];
+  for (const [re, labelGroup, valueGroup] of patterns) {
+    for (const m of src.matchAll(re)) {
+      collect(m[valueGroup], `${short}:${m[labelGroup]}`);
+    }
   }
 }
 

@@ -116,19 +116,32 @@ cd android && ./gradlew assembleDebug
 睡眠记录里有若干**必须恒成立**的字段关系。任何一条录入路径（床头实时记录 / 手动补录 / 一键记录 / 演示数据 / 备份导入）只要违反其中一条，图表和评分就会自相矛盾。这些关系已写成可执行断言：
 
 ```bash
-npm run verify         # 数据不变量 + SSRF 断言 + 渲染层断言（无需浏览器、无需网络）
+npm run verify         # 数据不变量 + SSRF 断言 + 渲染层断言 + 分期配色（无需浏览器、无需网络）
 npm run verify:data    # 只跑数据/安全断言
 npm run verify:render  # 只跑渲染层断言（SSR 出 HTML 后直接校验其中的数值）
-npm run check          # tsc --noEmit && verify && vite build，提交前跑这个
+npm run verify:colors  # 只跑分期配色的可分辨性（CIEDE2000 + 红/绿色盲模拟）
+npm run check          # tsc --noEmit && verify && vite build && verify:theme，提交前跑这个
 ```
 
-两层断言各管一件事，缺一不可：
+四层断言各管一件事，缺一不可：
 
 - **数据层**（`tools/verify-invariants.mts`）：记录内部字段必须自洽。
 - **渲染层**（`tools/verify-render.mts`）：把组件渲染成 HTML 后校验其中的数值。
   数据自洽不等于图画对了——真实案例是睡眠结构堆叠条用总睡眠做分母去划分
   含「清醒」的四段，四段之和超过 100% 被 `overflow-hidden` 裁掉：数据全对、
   图是错的，只有渲染层断言能抓到。
+- **配色层**（`tools/verify-stage-colors.mts`）：四个睡眠阶段的颜色必须在正常
+  视觉、绿色盲、红色盲下都能两两分开。旧配色在绿色盲下浅睡与 REM 的色差只有
+  ΔE00 7.2、红色盲下 0.7，肉眼在正常视觉下看不出来。配色不能靠眼睛挑，要按色差算。
+- **构建产物层**（`tools/verify-theme-classes.mts`，**必须在 `vite build` 之后跑**）：
+  Tailwind 里不存在的类名不会报错，只会静默生成不出 CSS。真实案例是
+  `border-slate-850`（Tailwind 4 的 slate 只有 800/900），失效后 `border-color`
+  回退成 `currentColor`，本该「几乎看不见的深色描边」在屏幕上成了纯白描边。
+
+**睡眠分期配色只有一处定义**：`src/utils/sleepStageColors.ts`。这四段是数据的
+编码而非界面装饰，所以**不跟随主题换色**。曾经趋势页的「深睡」用的是主题色，
+导致同一阶段在四个主题下分别是靛蓝/浅灰/黄/青，其中「静谧深海」主题的深睡
+（青）与浅睡（天蓝）几乎分不出来。
 
 约定（与临床/科研口径一致）：
 

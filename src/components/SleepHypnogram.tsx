@@ -1,17 +1,19 @@
 import React from 'react';
 import { SleepRecord, SleepStage } from '../types/sleep';
 import { ThemeConfig } from '../utils/themeStyles';
+import { SLEEP_STAGE_COLORS } from '../utils/sleepStageColors';
 
 interface SleepHypnogramProps {
   record: SleepRecord;
   theme?: ThemeConfig;
 }
 
+// 颜色统一来自 utils/sleepStageColors（原先这里写死 hex，与趋势页不一致）
 const STAGE_CONFIG: Record<SleepStage, { label: string; color: string; yOffset: number; height: number }> = {
-  awake: { label: '清醒', color: '#f87171', yOffset: 10, height: 18 },
-  rem: { label: 'REM (快速眼动)', color: '#818cf8', yOffset: 45, height: 22 },
-  light: { label: '浅睡', color: '#38bdf8', yOffset: 85, height: 24 },
-  deep: { label: '深睡', color: '#6366f1', yOffset: 125, height: 26 },
+  awake: { label: '清醒', color: SLEEP_STAGE_COLORS.awake.hex, yOffset: 10, height: 18 },
+  rem: { label: 'REM (快速眼动)', color: SLEEP_STAGE_COLORS.rem.hex, yOffset: 45, height: 22 },
+  light: { label: '浅睡', color: SLEEP_STAGE_COLORS.light.hex, yOffset: 85, height: 24 },
+  deep: { label: '深睡', color: SLEEP_STAGE_COLORS.deep.hex, yOffset: 125, height: 26 },
 };
 
 export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme }) => {
@@ -133,26 +135,26 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
       {/* Stage Percentage Bar */}
       <div className="mt-3">
         <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden flex border border-slate-700">
-          <div style={{ width: `${deepPercent}%` }} className="bg-indigo-500 h-full" title={`深睡: ${deepPercent}%`} />
-          <div style={{ width: `${lightPercent}%` }} className="bg-sky-400 h-full" title={`浅睡: ${lightPercent}%`} />
-          <div style={{ width: `${remPercent}%` }} className="bg-indigo-300 h-full" title={`REM: ${remPercent}%`} />
-          <div style={{ width: `${awakePercent}%` }} className="bg-rose-400 h-full" title={`清醒: ${awakePercent}%`} />
+          <div style={{ width: `${deepPercent}%` }} className={`${SLEEP_STAGE_COLORS.deep.className} h-full`} title={`深睡: ${deepPercent}%`} />
+          <div style={{ width: `${lightPercent}%` }} className={`${SLEEP_STAGE_COLORS.light.className} h-full`} title={`浅睡: ${lightPercent}%`} />
+          <div style={{ width: `${remPercent}%` }} className={`${SLEEP_STAGE_COLORS.rem.className} h-full`} title={`REM: ${remPercent}%`} />
+          <div style={{ width: `${awakePercent}%` }} className={`${SLEEP_STAGE_COLORS.awake.className} h-full`} title={`清醒: ${awakePercent}%`} />
         </div>
 
         {/* Breakdown Legend */}
         <div className="grid grid-cols-4 gap-2 mt-3 text-center text-xs">
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
             <div className="flex items-center justify-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span className={`w-2 h-2 rounded-full ${SLEEP_STAGE_COLORS.deep.className}`} />
               <span className={`text-xs ${textSecondary} font-medium`}>深睡</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.deepSleepMinutes}分</span>
-            <span className="text-[10px] text-indigo-300 font-mono font-medium">{deepShareOfTst}% (目标&gt;18%)</span>
+            <span className="text-[10px] text-indigo-400 font-mono font-medium">{deepShareOfTst}% (目标&gt;18%)</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
             <div className="flex items-center justify-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
+              <span className={`w-2 h-2 rounded-full ${SLEEP_STAGE_COLORS.light.className}`} />
               <span className={`text-xs ${textSecondary} font-medium`}>浅睡</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.lightSleepMinutes}分</span>
@@ -161,20 +163,20 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({ record, theme })
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
             <div className="flex items-center justify-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-indigo-300" />
+              <span className={`w-2 h-2 rounded-full ${SLEEP_STAGE_COLORS.rem.className}`} />
               <span className={`text-xs ${textSecondary} font-medium`}>REM</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.remSleepMinutes}分</span>
-            <span className="text-[10px] text-indigo-300 font-mono font-medium">{remShareOfTst}% (目标&gt;20%)</span>
+            <span className="text-[10px] text-pink-400 font-mono font-medium">{remShareOfTst}% (目标&gt;20%)</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
             <div className="flex items-center justify-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-rose-400" />
+              <span className={`w-2 h-2 rounded-full ${SLEEP_STAGE_COLORS.awake.className}`} />
               <span className={`text-xs ${textSecondary} font-medium`}>清醒</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.awakeMinutes}分</span>
-            <span className="text-[10px] text-rose-300 font-mono font-medium">占卧床 {awakePercent}%</span>
+            <span className="text-[10px] text-orange-300 font-mono font-medium">占卧床 {awakePercent}%</span>
           </div>
         </div>
 

@@ -279,23 +279,32 @@ export function generateLocalClinicalAnalysis(
     scoreSummary:
       act.length > 0
         ? `近${count || 7}天有 ${act.length} 项指标需要处理：${act.map((f) => f.metric).join('、')}。`
-        : `近${count || 7}天各项指标都在正常范围。`,
+        : `近${count || 7}天没有需要优先处理的指标。`,
     clinicalMetricsAnalysis: {
       durationAssessment: brief('duration_short', `平均 ${hours} 小时（目标 ${targetH} 小时）`) + '。',
-      deepSleepAssessment: brief('deep_low', `深睡占比 ${deepPct}%，在 13–23% 区间内`) + '。',
-      remSleepAssessment: `REM 平均 ${avgRem} 分钟，占比 ${remPct}%（参考 20–25%）。`,
+      // 深睡与 REM 都是 generateSleepStages 由作息**推演**出来的，不是分期实测。
+      // 原来这里给它们挂了「在 13–23% 区间内」「参考 20–25%」这样的**临床参考区间**——
+      // 等于把临床判据套在一个模拟量上（详见 design-review 第十四节）。
+      deepSleepAssessment: brief('deep_low', `作息推演的深睡占比 ${deepPct}%（模型推算，非分期实测）`) + '。',
+      remSleepAssessment: `作息推演的 REM 占比 ${remPct}%（模型推算，非分期实测）。`,
       efficiencyAssessment: `睡眠效率 ${avgEfficiency}%（>85% 为佳），平均夜醒 ${avgWake} 次。`,
       sleepLatencyAssessment: brief('latency_high', `入睡潜伏期 ${avgLatency} 分钟，在正常范围内`) + '。',
     },
-    identifiedIssues: act.length > 0 ? act.map((f) => f.headline) : ['各项指标均在正常范围'],
+    identifiedIssues: act.length > 0 ? act.map((f) => f.headline) : ['没有需要优先处理的指标'],
     personalizedRecommendations: recs.length > 0 ? recs : [{
       timeWindow: '全天',
       action: '保持当前作息',
-      detail: '各项指标都在正常范围内，此时最有价值的做法是不去改动它。',
+      detail: '没有需要优先处理的指标。此时最有价值的做法是不去改动它。',
       impact: '维持现有节律',
     }],
+    // 原文是「黑夜是身体自我治愈的神圣时刻，今晚您将拥有一场深沉安稳的修复之旅」——
+    // 一条没有任何依据的**疗效承诺**（"自我治愈"、"修复之旅"）。
+    // 换成有机制依据的一句：睡眠努力（sleep effort）的下降正是 CBT-I 起效的中介
+    // （n=62 中介分析，DOI 10.1111/psyg.13074，仅 sleep effort 的下降显著中介疗效）。
+    // 所以"不必为睡着这件事用力"不是安慰话，而是唯一被验证过的治疗里真正起作用的那个动作。
     mindsetAffirmation:
-      '允许思绪如云朵般悄然飘过，黑夜是身体自我治愈的神圣时刻，今晚您将拥有一场深沉安稳的修复之旅。',
+      '睡不着的时候不必用力。躺着安静休息本身就有价值，不需要为"必须睡着"这件事努力——' +
+      '放下这个目标，反而更容易睡着。',
   };
 }
 

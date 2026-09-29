@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SleepRecord, SleepAnalysisResult, ChatMessage, UserProfile } from '../types/sleep';
 import { generateLocalClinicalAnalysis, generateLocalChatReply, classifyIntent } from '../utils/clinicalSleepEngine';
+import { renderEmphasis } from '../utils/richText';
 import { computeFindings, type Finding } from '../utils/sleepFindings';
 import {
   getActiveModelLabel,
@@ -39,7 +40,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
       case 'local_llm':
         return getActiveModelLabel();
       case 'local_rules':
-        return '本地临床规则引擎';
+        return '本地睡眠规则引擎';
       case 'custom_openai':
         return '自建 API';
       default:
@@ -128,7 +129,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
       const cfg = userProfile.aiConfig;
       const customPersona =
         cfg?.systemPersona ||
-        '你是一位资深临床睡眠医学顾问。结合用户的睡眠打分与周期推演数据（模型估算值，非传感器实测），以关怀、科学、富有实操性的语气为用户答疑解惑，并如实说明估算边界。';
+        '你是一位循证的睡眠助手。结合用户的睡眠记录与周期推演数据（模型估算值，非传感器实测），以关怀、务实、可执行的语气答疑，并如实说明估算边界——尤其是哪些指标这个 App 根本测不到。';
 
       // 1. 端侧小模型（Qwen3-0.6B, llama.cpp WASM）：危机/用药安全护栏最高优先级，不经过任何模型
       if (cfg?.provider === 'local_llm') {
@@ -223,7 +224,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
 
       // 1b. Local Clinical Offline Rule Engine
       if (cfg?.provider === 'local_rules' || (cfg?.provider as string) === 'local_gemma') {
-        setActiveProviderName('本地临床规则引擎');
+        setActiveProviderName('本地睡眠规则引擎');
         // Fast local clinical response without external network dependence
         await new Promise((resolve) => setTimeout(resolve, 260));
         const localReply = generateLocalChatReply(text, latestRecord, records);
@@ -368,14 +369,14 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
               className={`${theme.cardInnerBg} rounded-2xl p-3 border-l-3 border-amber-400 space-y-1`}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-xs font-bold text-white">{f.headline}</span>
+                <span className="text-xs font-bold text-white">{renderEmphasis(f.headline)}</span>
                 <span className="text-[11px] font-mono text-amber-300 shrink-0 whitespace-nowrap">
-                  {f.value}
+                  {renderEmphasis(f.value)}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">{f.detail}</p>
+              <p className="text-[11px] text-slate-300 leading-relaxed">{renderEmphasis(f.detail)}</p>
               {f.levers[0] && (
-                <p className="text-[11px] text-indigo-300 font-medium">→ {f.levers[0]}</p>
+                <p className="text-[11px] text-indigo-300 font-medium">→ {renderEmphasis(f.levers[0])}</p>
               )}
             </div>
           ))}
@@ -402,7 +403,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
                   }`}
                 />
                 <span className="text-slate-300 flex-1 min-w-0 truncate">{f.metric}</span>
-                <span className="font-mono text-white shrink-0">{f.value}</span>
+                <span className="font-mono text-white shrink-0">{renderEmphasis(f.value)}</span>
                 <span className="text-slate-500 shrink-0 hidden sm:inline">{f.reference}</span>
               </div>
             ))}
@@ -414,20 +415,20 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
       {analysis && (
         <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} space-y-3 animate-in fade-in`}>
           <div className={`text-xs text-white ${theme.cardInnerBg} p-3 rounded-2xl border-l-3 border-indigo-400 leading-relaxed font-medium`}>
-            “{analysis.scoreSummary}”
+            “{renderEmphasis(analysis.scoreSummary)}”
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className={`p-3 rounded-2xl ${theme.cardInnerBg} border ${theme.cardInnerBorder}`}>
-              <span className="text-[11px] font-bold text-indigo-300 block mb-1">深睡机能恢复</span>
+              <span className="text-[11px] font-bold text-indigo-300 block mb-1">深睡（模型推演）</span>
               <p className="text-slate-300 text-[11px] leading-relaxed">
-                {analysis.clinicalMetricsAnalysis.deepSleepAssessment}
+                {renderEmphasis(analysis.clinicalMetricsAnalysis.deepSleepAssessment)}
               </p>
             </div>
             <div className={`p-3 rounded-2xl ${theme.cardInnerBg} border ${theme.cardInnerBorder}`}>
               <span className="text-[11px] font-bold text-emerald-300 block mb-1">入睡与睡眠效率</span>
               <p className="text-slate-300 text-[11px] leading-relaxed">
-                {analysis.clinicalMetricsAnalysis.efficiencyAssessment}
+                {renderEmphasis(analysis.clinicalMetricsAnalysis.efficiencyAssessment)}
               </p>
             </div>
           </div>
@@ -452,7 +453,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
                     : `${theme.cardInnerBg} text-white border ${theme.cardInnerBorder} rounded-bl-none`
                 }`}
               >
-                {msg.content}
+                {renderEmphasis(msg.content)}
               </div>
               <span className="text-[11px] text-slate-500 mt-1 px-1 font-mono">{msg.timestamp}</span>
             </div>

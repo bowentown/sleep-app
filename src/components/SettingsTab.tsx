@@ -239,7 +239,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     ? `端侧小模型 (${getActiveModelLabel()})`
                     : userProfile.aiConfig?.provider === 'custom_openai'
                     ? '自建 API'
-                    : '本地医学规则引擎'}
+                    : '本地睡眠规则引擎'}
                 </span>
               </p>
             </div>

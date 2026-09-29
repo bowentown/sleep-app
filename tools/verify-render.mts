@@ -995,6 +995,57 @@ for (const [label, record] of cases) {
     'wakingMood 的取值又变成了一个主观断言');
 }
 
+// ============ Markdown 粗体渲染 ============
+console.log('\n══ 渲染层：**粗体** 必须变成 <strong>，不能带星号显示给用户 ══');
+{
+  // 起因：项目里有 79 处用户可见文案写了 Markdown 粗体，而 JSX 不解析它。
+  // 最严重的是危机求助文案（`**请珍重您的生命，您并不孤单！**`）——
+  // 它在聊天气泡里就是一个纯文本节点，于是星号会显示给一个正在痛苦中的用户。
+  const { renderEmphasis } = await import('../src/utils/richText.js');
+
+  const html1 = renderToString(React.createElement('div', null, renderEmphasis('A **B** C')));
+  check('成对的 ** 渲染成 <strong>', /<strong[^>]*>B<\/strong>/.test(html1), html1);
+  check('粗体之外的文字保持原样', html1.includes('A ') && html1.includes(' C'), html1);
+
+  // 不成对的星号必须原样保留，否则 2**10 之类的内容会被吃掉
+  const html2 = renderToString(React.createElement('div', null, renderEmphasis('2**10 与 **未闭合')));
+  check('不成对的 ** 原样输出（不吞内容）', !/<strong/.test(html2), html2);
+
+  const html3 = renderToString(React.createElement('div', null, renderEmphasis('没有标记的普通文字')));
+  check('无标记时原样返回', html3.includes('没有标记的普通文字') && !/<strong/.test(html3), html3);
+
+  // ★ 真正的验收：真实文案渲染后**一个星号都不剩**
+  const { computeFindings } = await import('../src/utils/sleepFindings.js');
+  const { getInitialSleepLogs } = await import('../src/utils/sleepRecord.js');
+  const demo = getInitialSleepLogs();
+  const profile = { targetBedtime: '23:00', targetWakeTime: '07:00', targetDurationHours: 8 } as never;
+  const findings = computeFindings(demo, profile, { includeOnDemand: true }) as unknown as Array<Record<string, string>>;
+  check('演示数据确实产出了带粗体的结论（否则下面的检查是空跑）',
+    findings.some((f) => (f.detail ?? '').includes('**')), `共 ${findings.length} 条结论`);
+
+  let withMd = 0;
+  for (const f of findings) {
+    for (const key of ['headline', 'detail'] as const) {
+      const v = f[key];
+      if (!v || !v.includes('**')) continue;
+      withMd++;
+      const out = renderToString(React.createElement('div', null, renderEmphasis(v)));
+      check(`结论 ${f.id ?? ''} 的 ${key} 渲染后不含字面星号`, !/\*\*/.test(out), out.slice(0, 80));
+    }
+  }
+  check('确实检查到了带粗体的结论（不是空跑）', withMd >= 1, `检查到 ${withMd} 条`);
+
+  // 危机求助文案：全 App 最敏感的一段，单独钉一次
+  const { generateLocalChatReply } = await import('../src/utils/clinicalSleepEngine.js');
+  const crisis = generateLocalChatReply('我不想活了', demo[0]!, demo, profile) as string;
+  check('危机求助文案确实被触发（否则下面的检查是空跑）',
+    crisis.includes('生命') || crisis.includes('求助'), crisis.slice(0, 40));
+  const crisisOut = renderToString(React.createElement('div', null, renderEmphasis(crisis)));
+  check('危机求助文案渲染后不含字面星号', !/\*\*/.test(crisisOut),
+    crisisOut.replace(/<[^>]+>/g, '').slice(0, 100));
+  check('危机求助文案保留了求助热线号码', crisisOut.includes('400-161-9995'), crisisOut.slice(0, 80));
+}
+
 // ============ 汇总 ============
 console.log(`\n${'='.repeat(60)}`);
 if (failures.length === 0) {

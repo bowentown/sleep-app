@@ -55,7 +55,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
 
   const [systemPersona, setSystemPersona] = useState(
     config.systemPersona ||
-      '你是一位资深临床睡眠医学与生理节律顾问。以温暖、关怀、专业的语气为用户提供科学根据的睡眠调优与助眠行动方案。'
+      '你是一位循证的睡眠与生理节律助手。以温暖、关怀、务实的语气，依据公开的睡眠研究共识提供作息调整建议，并如实说明哪些事这个 App 做不到。'
   );
 
   const [showDeepseekKey, setShowDeepseekKey] = useState(false);
@@ -281,7 +281,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <HardDrive className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-white">本地医学规则引擎 (Phase 0 深度增强)</span>
+                  <span className="font-bold text-white">本地睡眠规则引擎 (Phase 0)</span>
                 </div>
                 <span className="text-xs text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-600">
                   0MB 即刻可用 · 零延迟
@@ -289,16 +289,19 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
               </div>
 
               <p className="text-[11px] text-slate-300 leading-relaxed">
-                遵循失眠认知行为治疗（CBT-I）与美国国家睡眠基金会（NSF）指南。内置意图分类器、生命危机熔断安全护栏，并结合当夜深睡、潜伏期与作息真实插值。
+                建议方向与失眠认知行为治疗（CBT-I）一致——它不替代 CBT-I 治疗，
+                只是把同样的原则用在你可以自己做的事上；时长与环境区间参照美国睡眠医学会
+                与睡眠研究学会的共识（7–9 小时、18–21℃）。内置关键词意图分类与生命危机熔断护栏，
+                并结合你当夜的时长、入睡潜伏期与作息记录取值。
               </p>
 
               <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/60 text-[11px] text-emerald-300 space-y-1">
                 <div className="font-bold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>已集成十大临床睡眠意图与生命安全护栏</span>
+                  <span>覆盖十类睡眠话题与生命安全护栏</span>
                 </div>
                 <p className="text-slate-300 text-xs">
-                  覆盖深睡提升、20分钟离床重置、早醒皮质醇应对、咖啡因腺苷代谢、危机热线即时阻断。
+                  覆盖入睡困难、夜间醒转、早醒、咖啡因与酒精代谢、作息规律性等话题，以及危机热线即时阻断。不包含「提升深睡」——深睡无法被本 App 测量。
                 </p>
               </div>
             </div>
@@ -604,7 +607,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
 
           {/* Privacy & Key Security Notice */}
           <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400 leading-relaxed">
-            🛡️ **存储与安全提示**：自配的 API Key 以明文形式保存在您当前设备浏览器的 LocalStorage 中，不会上传存储至我们的服务器；请勿在他人共用的公用设备上保存敏感 Key。
+            🛡️ 存储与安全提示：自配的 API Key 以明文形式保存在您当前设备浏览器的 LocalStorage 中，不会上传存储至我们的服务器；请勿在他人共用的公用设备上保存敏感 Key。
           </div>
         </div>
 

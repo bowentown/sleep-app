@@ -410,11 +410,17 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
               <p className={`${theme.textSecondary} font-medium`}>
                 {micStatus === 'active'
                   ? decibels !== null && decibels < 40
-                    ? '🟢 环境安静 · 利于褪黑素分泌'
-                    : '🟡 检测到枕边环境动静或杂音'
+                    // 原为「🟢 环境安静 · 利于褪黑素分泌」——这是一条**生理结论**，
+                    // 而它的依据是本文件 191 行自己承认的「灵敏度未校准、误差可达 ±10 dB」。
+                    // 上游刚说不准，下游就拿它下生理结论，是自相矛盾的。
+                    // 现在只说环境本身，不下关于身体的结论。
+                    ? '🟢 环境安静'
+                    : '🟡 有环境动静或杂音'
                   : micStatus === 'requesting'
                   ? '🎙️ 正在请求麦克风权限...'
-                  : `🔕 ${micError || '麦克风不可用 · 无声级监测'}`}
+                  // 「无声级监测」有歧义，容易被读成"某种无声音的监测方式"。
+                  // 麦克风不可用时其实**完全没有**声音监测，直接这么说。
+                  : `🔕 ${micError || '麦克风不可用 · 当前未在监测声音'}`}
               </p>
               {micStatus === 'unavailable' && (
                 <button

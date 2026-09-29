@@ -30,6 +30,7 @@ const SEGMENTS = [
   ['作息节律', 'tools/verify-rhythm.mts'],
   ['AI 顾问', 'tools/verify-ai-advice.mts'],
   ['主题颜色类', 'tools/verify-theme-classes.mts'],
+  ['文案护栏', 'tools/verify-copy.mts'],
 ];
 
 // 通过时各脚本打印：✅ …（N 项断言）/（N 项）/（N 项通过）

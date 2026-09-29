@@ -175,7 +175,6 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
       enabled: true,
       repeatDays: newDays,
       tone: newTone,
-      vibrate: true,
       smartWakeEnabled: newSmartWake,
       smartWakeWindowMinutes: newSmartWindow,
     };

@@ -72,7 +72,6 @@ export interface CustomAlarmSetting {
   enabled: boolean;
   repeatDays: number[]; // [1,2,3,4,5] (1=Mon..7=Sun)
   tone: 'gentle_chime' | 'aurora_melody' | 'radar_beep';
-  vibrate: boolean;
   smartWakeEnabled: boolean;
   smartWakeWindowMinutes: number; // e.g. 20
 }
@@ -118,9 +117,7 @@ export interface UserProfile {
   targetBedtime: string; // e.g. "23:00"
   targetWakeTime: string; // e.g. "07:00"
   targetDurationHours: number;
-  smartAlarmEnabled: boolean;
   smartWakeWindowMinutes: number;
-  soundDetectionSensitivity: 'low' | 'medium' | 'high';
   themeColor?: 'midnight' | 'pure_dark' | 'warm_amber' | 'serene_blue' | 'light_clean';
   brightnessLevel: number; // 0 - 100% app display brightness / dimming
   warmthFilter: boolean; // eye protection amber warm tint

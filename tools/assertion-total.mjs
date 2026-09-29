@@ -34,6 +34,7 @@ const SEGMENTS = [
   ['接线护栏', 'tools/verify-wiring.mts'],
   ['智能唤醒', 'tools/verify-smartwake.mts'],
   ['无障碍护栏', 'tools/verify-a11y.mts'],
+  ['桌宠悬浮窗', 'tools/verify-pet.mts'],
 ];
 
 // 通过时各脚本打印：✅ …（N 项断言）/（N 项）/（N 项通过）

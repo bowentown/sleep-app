@@ -1,5 +1,7 @@
 package com.somnacare.gemmallm;
 
+import android.os.Build;
+import android.content.Intent;
 import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -200,6 +202,8 @@ public class GemmaLLMPlugin extends Plugin {
     public void eyeCareStop(PluginCall call) {
         try {
             EyeCareService.removeOverlay(getContext());
+            getContext().getSharedPreferences("somnacare_prefs", Context.MODE_PRIVATE)
+                    .edit().putBoolean("eyecare_on", false).apply();
         } catch (Exception ignored) {
         }
         try {
@@ -211,6 +215,133 @@ public class GemmaLLMPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("ok", true);
         call.resolve(ret);
+    }
+
+    // ==== 鲸鱼娘桌宠悬浮窗 ====
+
+    /** 悬浮窗权限状态（与护眼滤镜共用同一项系统授权）。 */
+    @PluginMethod
+    public void petPermission(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", android.provider.Settings.canDrawOverlays(getContext()));
+        ret.put("sdkInt", Build.VERSION.SDK_INT);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void petOpenPermission(PluginCall call) {
+        try {
+            android.content.Intent intent = new android.content.Intent(
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            try {
+                android.content.Intent fallback = new android.content.Intent(
+                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getContext().getPackageName()));
+                fallback.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+                call.resolve();
+            } catch (Exception e2) {
+                call.reject("无法打开授权页: " + e2.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 启动桌宠，并把 Web 侧算好的文案快照一并写入 SharedPreferences。
+     * 原生只读这几行字符串，不解析任何业务数据——睡眠记录仍只活在 WebView 的 localStorage。
+     */
+    @PluginMethod
+    public void petStart(PluginCall call) {
+        if (!android.provider.Settings.canDrawOverlays(getContext())) {
+            call.reject("OVERLAY_PERMISSION_REQUIRED");
+            return;
+        }
+        try {
+            writePetSnapshot(call);
+            android.content.Intent intent = new android.content.Intent(getContext(), PetOverlayService.class)
+                    .setAction(PetOverlayService.ACTION_START);
+            if (Build.VERSION.SDK_INT >= 26) {
+                getContext().startForegroundService(intent);
+            } else {
+                getContext().startService(intent);
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("启动桌宠失败: " + e.getMessage());
+        }
+    }
+
+    /** 仅刷新文案快照（服务已在运行时调用，不重建窗口）。 */
+    @PluginMethod
+    public void petSync(PluginCall call) {
+        try {
+            writePetSnapshot(call);
+            android.content.Intent intent = new android.content.Intent(getContext(), PetOverlayService.class)
+                    .setAction(PetOverlayService.ACTION_START);
+            getContext().startService(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("同步桌宠文案失败: " + e.getMessage());
+        }
+    }
+
+    /** 文案快照 + 播报频率 + 时段/情绪一次性落盘（petStart/petSync 共用）。 */
+    private void writePetSnapshot(PluginCall call) {
+        int every = 8;
+        try {
+            Integer e = call.getInt("bubbleEvery");
+            if (e != null && e >= 1 && e <= 50) every = e;
+        } catch (Exception ignored) {
+        }
+        getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString(PetOverlayService.K_PET_SAY, safe(call, "say", ""))
+                .putInt(PetOverlayService.K_BUBBLE_EVERY, every)
+                // 时段与情绪也是 Web 侧算好推来的**枚举字符串**，不是睡眠数据本身。
+                // 原生只做映射，所以这条"数据不出 WebView"的边界没有被打破。
+                .putString(PetOverlayService.K_PET_PHASE, safe(call, "phase", "day"))
+                .putString(PetOverlayService.K_PET_MOOD, safe(call, "mood", "plain"))
+                // 气泡旁边的表情贴图文件名（同样由 Web 侧选好，原生只按名取图）
+                .putString(PetOverlayService.K_PET_STICKER, safe(call, "sticker", ""))
+                .apply();
+    }
+
+    @PluginMethod
+    public void petStop(PluginCall call) {
+        try {
+            android.content.Intent intent = new android.content.Intent(getContext(), PetOverlayService.class)
+                    .setAction(PetOverlayService.ACTION_STOP);
+            getContext().startService(intent);
+        } catch (Exception ignored) {
+        }
+        call.resolve();
+    }
+
+    /** 读取 App 上次退出前留在 SharedPreferences 的目标分区（桌宠点击行时写入）。 */
+    @PluginMethod
+    public void petConsumePendingTab(PluginCall call) {
+        JSObject ret = new JSObject();
+        try {
+            android.content.SharedPreferences sp =
+                    getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            String tab = sp.getString(PetOverlayService.K_PENDING_TAB, null);
+            if (tab != null) {
+                sp.edit().remove(PetOverlayService.K_PENDING_TAB).apply();
+            }
+            ret.put("tab", tab);
+        } catch (Exception ignored) {
+            ret.put("tab", (String) null);
+        }
+        call.resolve(ret);
+    }
+
+    private static String safe(PluginCall call, String key, String fallback) {
+        String v = call.getString(key, fallback);
+        return v == null ? fallback : v;
     }
 
     @PluginMethod

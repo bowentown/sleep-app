@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   RotateCcw,
@@ -8,12 +8,29 @@ import {
   Download,
   Upload,
   Smartphone,
+  Fish,
 } from 'lucide-react';
 import { UserProfile, CustomAlarmSetting, CustomAIConfig, SleepRecord, SleepStageSegment } from '../types/sleep';
 import { AlarmManager } from './AlarmManager';
 import { CustomAISettingsModal } from './CustomAISettingsModal';
 import { PWAExportModal } from './PWAExportModal';
 import { APP_THEMES, ThemeConfig } from '../utils/themeStyles';
+import {
+  isPetNative,
+  isPetEnabled,
+  getBubbleEvery,
+  setBubbleEvery,
+  petPermissionGranted,
+  petOpenPermissionSettings,
+  buildPetSayLines,
+  startPet,
+  syncPet,
+  stopPet,
+  PET_PHASE_LABEL,
+  petPhaseOf,
+  petMoodOf,
+} from '../utils/petOverlay';
+import { pickSticker, stickerUrl } from '../utils/petStickers';
 
 // 主题切换时同步切换桌面图标（原生 activity-alias 启停；Web 环境跳过）
 function switchLauncherIcon(themeId: string) {
@@ -118,6 +135,52 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   // 安装/导出引导此前是个**孤儿组件**——写完了、没有任何入口，谁都没见过。
   // 放在「数据备份」卡里：它是把数据带走/换设备的入口，和导出备份是同一件事。
   const [isPwaOpen, setIsPwaOpen] = useState(false);
+
+  // ── 大肥鱼桌宠悬浮窗 ──
+  const petNative = isPetNative();
+  const [petOn, setPetOn] = useState(() => isPetEnabled());
+  const [petGranted, setPetGranted] = useState(true);
+  const [petBusy, setPetBusy] = useState(false);
+  const [petEvery, setPetEvery] = useState(() => getBubbleEvery());
+
+  useEffect(() => {
+    if (!petNative) return;
+    void petPermissionGranted().then(setPetGranted);
+  }, [petNative]);
+
+  // 傲娇播报词：随数据实时预览。这里显示的**就是**推到原生去的那几行，
+  // 不是另写一份示例文案——否则预览和实际播报会悄悄分叉。
+  const petSay = buildPetSayLines(records, userProfile);
+  // 当前时段与情绪也一并显示，让"她为什么会是这个表情"可被用户自己核对。
+  const petPhase = PET_PHASE_LABEL[petPhaseOf(new Date())];
+  const petMood = petMoodOf(records, userProfile);
+  // 预览用的贴图 = 真正会推给原生气泡的那一张（同一次 pickSticker 调用逻辑）
+  const petSticker = pickSticker(petPhaseOf(new Date()), petMood);
+
+  const handlePetEveryChange = (next: number) => {
+    const v = Math.max(1, Math.min(20, next));
+    setPetEvery(v);
+    setBubbleEvery(v);
+    if (petOn) void syncPet(records, userProfile);
+  };
+
+  const handlePetToggle = async (next: boolean) => {
+    if (!petNative) return;
+    setPetBusy(true);
+    try {
+      if (next) {
+        const res = await startPet(records, userProfile);
+        setPetOn(res.ok);
+        if (res.needPermission) setPetGranted(false);
+        else setPetGranted(true);
+      } else {
+        await stopPet();
+        setPetOn(false);
+      }
+    } finally {
+      setPetBusy(false);
+    }
+  };
 
   const handleExportJSON = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(records, null, 2));
@@ -378,6 +441,113 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               className="hidden"
             />
           </label>
+        </div>
+
+        {/* 大肥鱼桌宠悬浮窗：把五个区域的结论压成一句话，常驻在其他应用之上 */}
+        <div className={`rounded-2xl ${theme.cardInnerBg} border ${theme.cardBorder} p-3 space-y-3`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-9 h-9 rounded-2xl bg-sky-500/20 text-sky-300 flex items-center justify-center border border-sky-400 shrink-0">
+                <Fish className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-black text-white">大肥鱼桌宠</h3>
+                <p className="text-[11px] text-slate-400" aria-live="polite">
+                  {petNative
+                    ? petOn
+                      ? `常驻桌面 · 现在是${petPhase}，${petMood === 'low' ? '她有点不高兴' : petMood === 'good' ? '她心情不错' : '她懒得理你'}`
+                      : '开启后常驻在其他应用之上'
+                    : '网页预览不可用，安装 APK 后生效'}
+                </p>
+              </div>
+            </div>
+            {petNative && (
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={petOn}
+                  disabled={petBusy}
+                  onChange={(e) => void handlePetToggle(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div
+                  role="switch"
+                  aria-checked={petOn}
+                  aria-label="大肥鱼桌宠"
+                  className="w-11 h-6 bg-slate-600 peer-checked:bg-sky-500 rounded-full transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-5"
+                />
+              </label>
+            )}
+          </div>
+
+          {/* 播报词预览 = 真正推给原生的那几行 */}
+          <div className="rounded-xl bg-slate-900/60 border border-slate-700/60 p-3 space-y-1">
+            <div className="flex items-start gap-3">
+              <img
+                src={stickerUrl(petSticker.file)}
+                alt={petSticker.label}
+                width={64}
+                height={64}
+                className="w-16 h-16 rounded-xl object-contain bg-slate-800/60 shrink-0"
+              />
+              <p className="text-[11px] font-bold text-sky-300 pt-1">
+                🐋 傲娇播报预览 · 共 {petSay.length} 句
+                <br />
+                <span className="text-slate-500 font-normal">
+                  睡眠／趋势／AI 顾问／护眼／偏好 五个区域各至少一句 · 头顶这张是「{petSticker.label}」
+                </span>
+              </p>
+            </div>
+            {petSay.slice(0, 3).map((line, i) => (
+              <p key={i} className="text-[11px] text-slate-300 leading-relaxed">{line}</p>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold text-white">播报频率</p>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                每 {petEvery} 次点她自动播报一次，其余点击弹出「消息 / 护眼」按钮
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handlePetEveryChange(petEvery - 1)}
+                disabled={petEvery <= 1}
+                aria-label="降低播报频率"
+                className="w-7 h-7 rounded-lg bg-slate-700/70 text-slate-200 text-sm font-black disabled:opacity-30 cursor-pointer active:scale-90 transition-transform"
+              >
+                −
+              </button>
+              <span className="w-6 text-center text-xs font-black text-sky-300">{petEvery}</span>
+              <button
+                type="button"
+                onClick={() => handlePetEveryChange(petEvery + 1)}
+                disabled={petEvery >= 20}
+                aria-label="提高播报频率"
+                className="w-7 h-7 rounded-lg bg-slate-700/70 text-slate-200 text-sm font-black disabled:opacity-30 cursor-pointer active:scale-90 transition-transform"
+              >
+                ＋
+              </button>
+            </div>
+          </div>
+
+          {petNative && !petGranted && (
+            <button
+              type="button"
+              onClick={() => void petOpenPermissionSettings()}
+              className="w-full py-2 rounded-xl bg-sky-500/20 border border-sky-400 text-sky-200 text-xs font-bold cursor-pointer active:scale-[0.98] transition-transform"
+            >
+              需要悬浮窗权限 · 前往系统设置授权
+            </button>
+          )}
+
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            拖动可挪位置，松手自动吸附到屏幕边缘。点她弹「💬 消息 / 👁 护眼」两个按钮；
+            消息看她头顶冒傲娇播报，护眼就地开关滤镜。她的表情会跟着时段走
+            （清晨刚醒 / 午后打盹 / 深夜困倦），心情只由你的**实测**评分决定，推演指标不参与。
+          </p>
         </div>
 
         <button

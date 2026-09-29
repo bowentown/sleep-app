@@ -17,6 +17,16 @@ import { APP_THEMES } from './utils/themeStyles';
 import { isNativePlatform, syncAlarmsToNative } from './utils/nativeAlarmScheduler';
 import { applyEyeCare, eyeCareInAppStyles, isInEyeCareWindow } from './utils/eyeCare';
 import { LaunchSplash } from './components/LaunchSplash';
+import { consumePendingTab, syncPet } from './utils/petOverlay';
+
+/**
+ * 五个分区的顺序。
+ *
+ * 桌宠（大肥鱼悬浮窗）点"速览卡"时会把目标分区名写进原生，App 被拉起后按这张表校验。
+ * 它同时是"桌宠能跳到哪几个分区"的唯一事实来源——`tools/verify-pet.mts` 会核对
+ * 这张表和 BottomNavBar 的分区集合一致，避免加了一个分区但桌宠跳不过去。
+ */
+export const TAB_ORDER: NavTab[] = ['today', 'trends', 'coach', 'eyecare', 'settings'];
 
 /**
  * 页头日期。
@@ -149,6 +159,35 @@ export const App: React.FC = () => {
       syncAlarmsToNative(userProfile.alarms || []);
     }
   }, []);
+
+  // 桌宠速览卡点行后拉起 App：读取并清除原生写入的目标分区。
+  //
+  // ★ 从后台被桌宠拉起时 App 不会重新挂载，只跑一次是接不住的，
+  // 所以还要监听 visibilitychange 补一次——这是原实现踩过的坑。
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    let cancelled = false;
+    const apply = () => {
+      void consumePendingTab().then((tab) => {
+        if (cancelled || !tab) return;
+        if ((TAB_ORDER as string[]).includes(tab)) setActiveTab(tab as NavTab);
+      });
+    };
+    apply();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') apply();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
+  // 桌宠播报词库跟随数据刷新（只在桌宠开着时真正发出请求）。
+  useEffect(() => {
+    void syncPet(records, userProfile);
+  }, [records, userProfile]);
 
   // 护眼滤镜：打开 App 时按配置/定时窗口自动启停，之后每 30 秒轮询一次
   const eyeCareCfg = userProfile.eyeCare ?? DEFAULT_EYE_CARE;

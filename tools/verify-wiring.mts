@@ -39,11 +39,23 @@ const check = (name: string, ok: boolean, detail = '') => {
   else failures.push(`${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-function walk(dir: string, out: string[] = []): string[] {
+/**
+ * 收集源文件。
+ *
+ * ★ `ext` 参数是这个函数的第二次修改。第一版写死 `/\.(tsx|ts)$/`，
+ * 于是 `walk('tools')` **什么都收不到**——因为工具脚本是 `.mts`：
+ * `\.(tsx|ts)$` 要求结尾是 `.ts`/`.tsx`，而 `verify-smartwake.mts` 结尾是 `.mts`。
+ * 后果是死导出规则注释里写的「引用搜索必须包含 tools/」**根本没有生效**，
+ * 一句写在注释里的保证与代码实际行为不符。
+ *
+ * 发现方式：智能唤醒模块的导出只被 `tools/verify-smartwake.mts` 引用，
+ * 却被报成「无人引用」——说明 tools/ 确实没被搜到。
+ */
+function walk(dir: string, out: string[] = [], ext: RegExp = /\.(tsx|ts)$/): string[] {
   for (const e of readdirSync(dir)) {
     const f = join(dir, e);
-    if (statSync(f).isDirectory()) walk(f, out);
-    else if (/\.(tsx|ts)$/.test(f)) out.push(f);
+    if (statSync(f).isDirectory()) walk(f, out, ext);
+    else if (ext.test(f)) out.push(f);
   }
   return out;
 }
@@ -229,7 +241,21 @@ for (const a of DISPLAY_ONLY_OK) {
  * ★ 引用搜索**必须包含 `tools/`**：有些导出只被断言使用（比如给测试用的纯函数），
  * 只扫 `src/` 会把他们误判成死代码。
  */
-const refFiles = [...files, ...walk('tools').filter((f) => /\.mts?$/.test(f))];
+// 注意这里必须显式传扩展名：默认的 `/\.(tsx|ts)$/` 收不到 `.mts`。
+//
+// ★ 还必须把**本文件自己**排除掉——这是本项目第五次「检查匹配到自己」，
+// 而且是最隐蔽的一次：被检查的名字只出现在本文件的 `ORPHAN_KNOWN` 登记表里，
+// 而登记表是**代码**（一个数组字面量里的字符串），`stripComments` 剥不掉它。
+// 后果：登记表把「孤儿」自己变成了「有人引用」，
+// 于是死导出规则永远查不出孤儿，而「孤儿记录仍然成立」反而全部报错——
+// 一个用来记录缺陷的清单，亲手把自己要查的缺陷藏了起来。
+const SELF = 'verify-wiring.mts';
+const refFiles = [
+  ...files,
+  ...walk('tools', [], /\.(mts|ts|tsx)$/).filter((f) => !f.endsWith(SELF)),
+];
+check('引用搜索排除了本文件（否则登记表会把自己要查的孤儿藏起来）',
+  !refFiles.some((f) => f.endsWith(SELF)), refFiles.filter((f) => f.endsWith(SELF)).join('、'));
 const refSources = refFiles.map((f) => stripComments(readFileSync(f, 'utf8')));
 
 const exportNames = new Map<string, { file: string; dup: boolean }>();

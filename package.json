@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "verify": "tsx tools/verify-invariants.mts && tsx tools/verify-render.mts && tsx tools/verify-stage-colors.mts && tsx tools/verify-insights.mts && tsx tools/verify-animation-transform.mts && tsx tools/verify-rhythm.mts && tsx tools/verify-ai-advice.mts && tsx tools/verify-copy.mts && tsx tools/verify-wiring.mts",
+    "verify": "tsx tools/verify-invariants.mts && tsx tools/verify-render.mts && tsx tools/verify-stage-colors.mts && tsx tools/verify-insights.mts && tsx tools/verify-animation-transform.mts && tsx tools/verify-rhythm.mts && tsx tools/verify-ai-advice.mts && tsx tools/verify-copy.mts && tsx tools/verify-wiring.mts && tsx tools/verify-smartwake.mts",
     "verify:theme": "tsx tools/verify-theme-classes.mts",
     "verify:data": "tsx tools/verify-invariants.mts",
     "verify:render": "tsx tools/verify-render.mts",
@@ -22,7 +22,8 @@
     "verify:ai": "tsx tools/verify-ai-advice.mts",
     "verify:total": "node tools/assertion-total.mjs",
     "verify:copy": "tsx tools/verify-copy.mts",
-    "verify:wiring": "tsx tools/verify-wiring.mts"
+    "verify:wiring": "tsx tools/verify-wiring.mts",
+    "verify:smartwake": "tsx tools/verify-smartwake.mts"
   },
   "dependencies": {
     "@capacitor/local-notifications": "^8.3.1",

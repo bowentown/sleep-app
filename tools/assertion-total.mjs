@@ -32,6 +32,7 @@ const SEGMENTS = [
   ['主题颜色类', 'tools/verify-theme-classes.mts'],
   ['文案护栏', 'tools/verify-copy.mts'],
   ['接线护栏', 'tools/verify-wiring.mts'],
+  ['智能唤醒', 'tools/verify-smartwake.mts'],
 ];
 
 // 通过时各脚本打印：✅ …（N 项断言）/（N 项）/（N 项通过）

@@ -155,8 +155,16 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-slate-300 font-bold">深睡阶段</span>
-                <span className="font-mono text-emerald-400 font-black">
+                {/* 这一行原来用绿色显示、且不带任何来源说明，看起来和上面的「总睡眠时长」
+                    一样是测出来的。但它不是：用户只填了就寝/起床/入睡用时/夜醒次数，
+                    分期是按固定周期模型推算的（详见 utils/sleepFindings 的 provenance）。
+                    绿色在这张卡里意味着「这一项好」，而实测这个数字主要反映睡眠时长，
+                    睡得越少反而越高——所以既不该用它表达好坏，也不能不带来源标记。 */}
+                <span className="text-slate-300 font-bold">
+                  深睡阶段
+                  <span className="ml-1 text-[11px] font-normal text-slate-500">推演</span>
+                </span>
+                <span className="font-mono text-slate-200 font-black">
                   {latestRecord.deepSleepMinutes}分 · {Math.round((latestRecord.deepSleepMinutes / Math.max(1, latestRecord.durationMinutes)) * 100)}%
                 </span>
               </div>
@@ -182,7 +190,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                 );
               })()}
               <div className="pt-1 text-xs text-slate-500">
-                模型估算值，非医疗诊断。
+                时长与就寝为你的实际记录；深睡分期由作息推演，手机无法测量，非医疗诊断。
               </div>
               {latestRecord.sleepScore < 75 && (
                 <div className="pt-1 text-[11px] text-amber-300/90 font-medium">

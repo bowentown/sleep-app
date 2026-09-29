@@ -263,8 +263,18 @@ for (const [label, record] of cases) {
     const hypnoHtml = render(`SleepHypnogram(${label})`,
       React.createElement(SleepHypnogram, { record, theme }));
 
-    // TodayTab：「深睡阶段 95分 · 21%」
-    const todayPct = stripComments(todayHtml).match(/深睡阶段<\/span><span[^>]*>\d+分 · (\d+)%</)?.[1];
+    // TodayTab：「深睡阶段 推演 95分 · 21%」
+    // 注意：标签后多了一个「推演」来源标记的 span，所以这里不能再用
+    // `深睡阶段</span>` 这种紧邻匹配——那是断言写法，不是被测结构的一部分。
+    const todayPct = stripComments(todayHtml)
+      .match(/深睡阶段[\s\S]{0,240}?<\/span><span[^>]*>\d+分 · (\d+)%</)?.[1];
+    // 深睡是推演值而不是实测值，首页必须在指标处自曝来源。
+    // 只在页脚写一句「模型估算值」不够：那一行看起来和上面的实测指标完全一样。
+    check(
+      `首页在深睡指标处标注来源（${label}）`,
+      /深睡阶段[\s\S]{0,200}?推演/.test(stripComments(todayHtml)),
+      '深睡行没有「推演」标记，用户会以为这是测出来的'
+    );
     // SleepHypnogram 的深睡统计块（深睡是第一个带临床目标的块）。
     // 占比与目标现在是两个 span：大字「21%」+ 小字「目标 18%」——
     // 原来写成一串「21% (目标>18%)」，在四列窄格里必定折行。

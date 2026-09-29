@@ -440,6 +440,36 @@ check('原生侧贴图名有白名单校验', /matches\(\s*"\[a-z0-9_-\]\+"\s*\)
 check('原生侧贴图取不到时静默跳过', /loadSticker[\s\S]{0,400}?return null;/.test(service));
 check('气泡换词时也换贴图', /pet_sticker_view/.test(service));
 
+// 参数个数：改了方法签名却漏掉某个调用点，编译器会报
+// "method cannot be applied to given types"。
+// CI 的 build-apk 任务能抓到，但本地先抓一次更省事——
+// buildBubble 就是这么漏的（定义改成两参，showBubble 里那处仍写一参）。
+const bubbleCalls = [...service.matchAll(/buildBubble\s*\(([^)]*)\)/g)]
+  .map((m) => m[1]!.trim())
+  .filter((args) => args !== '' && !args.startsWith('String '));
+check('buildBubble 的调用点都传了两个参数',
+  bubbleCalls.length > 0 && bubbleCalls.every((a) => a.split(',').length === 2),
+  `实际调用: ${bubbleCalls.map((a) => `(${a})`).join(' ')}`);
+
+// 定义与调用必须同名同参数个数（定义那处带类型声明，单独数一下）
+const bubbleDefs = [...service.matchAll(/private\s+FrameLayout\s+buildBubble\s*\(([^)]*)\)/g)];
+check('buildBubble 只定义一次', bubbleDefs.length === 1, `实际 ${bubbleDefs.length} 次`);
+check('buildBubble 定义了两个形参',
+  bubbleDefs.length === 1 && bubbleDefs[0]![1]!.split(',').length === 2,
+  bubbleDefs[0]?.[1]);
+
+// PetOverlayService 调用的 EyeCareService 方法必须真的存在。
+// CI 抓到过 3 处 `EyeCareService.isActive()` —— 本仓的 EyeCareService 当时比上游旧，
+// 整份替换后才有的。这类"跨文件方法不存在"本地也能先查。
+const eyeSrc = readStripped(join(JAVA, 'EyeCareService.java'));
+const eyeCalls = new Set(
+  [...service.matchAll(/EyeCareService\.([a-zA-Z]+)\s*\(/g)].map((m) => m[1]!));
+// ★ 这里原本用 new RegExp(`...\\s*\\(`) 拼正则，结果模板字符串把 `\s` 当转义
+// 吃成了 `s`、`\(` 吃成了 `(`，正则直接语法错误。改成不含转义的 includes。
+const eyeMissing = [...eyeCalls].filter((m) => !eyeSrc.includes(m + '('));
+check('EyeCareService 的方法都存在', eyeMissing.length === 0,
+  `缺失: ${eyeMissing.join(', ')}`);
+
 // ───────────────────────── 结果
 
 // ★ 输出格式必须与 tools/assertion-total.mjs 的锚点一致，否则总计脚本

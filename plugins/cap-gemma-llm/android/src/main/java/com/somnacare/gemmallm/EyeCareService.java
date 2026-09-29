@@ -95,6 +95,9 @@ public class EyeCareService extends Service {
             String action = intent != null ? intent.getAction() : ACTION_APPLY;
             if (ACTION_STOP.equals(action)) {
                 removeOverlayInternal();
+                // 关闭只改开关位，保留用户选的颜色/强度——悬浮窗与磁贴再开时
+                // 才能沿用用户的选择，而不是回落到默认暖黄
+                persistState(getApplicationContext(), false, lastColorHex, lastWarm, lastDim);
                 stopForeground(STOP_FOREGROUND_REMOVE);
                 stopSelf();
                 return START_NOT_STICKY;
@@ -114,6 +117,25 @@ public class EyeCareService extends Service {
 
     private static float clamp01(float v) {
         return Math.min(1f, Math.max(0f, v));
+    }
+
+    /** 滤镜层是否正在显示（磁贴状态源，同进程内可靠） */
+    public static boolean isActive() {
+        return warmLayer != null || dimLayer != null;
+    }
+
+    /** 持久化当前开关与参数（快捷设置磁贴在进程外/冷启动时使用） */
+    static void persistState(Context context, boolean on, String color, float w, float d) {
+        try {
+            context.getSharedPreferences("somnacare_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("eyecare_on", on)
+                    .putString("eyecare_color", color)
+                    .putFloat("eyecare_warm", w)
+                    .putFloat("eyecare_dim", d)
+                    .apply();
+        } catch (Exception ignored) {
+        }
     }
 
     /** 颜色 + 透明度 → 预乘进 ARGB 的 int（避免 View.setAlpha 触发离屏合成） */
@@ -140,6 +162,13 @@ public class EyeCareService extends Service {
 
             float w = clamp01(warmAlpha);
             float d = clamp01(dimAlpha);
+            // 真实参数落盘：悬浮窗/快捷设置磁贴就地开关时读的就是这里。
+            // 之前只有 STOP 会 persistState(false,null,0,0)，apply 从不写，
+            // 导致悬浮窗再开时读到 0/0 → 两层都不建 → 看似开启实际无滤镜。
+            // 双层都为 0 的调用是无效操作，不覆盖已存参数。
+            if (w > 0.005f || d > 0.005f) {
+                persistState(context, true, warmColorHex, w, d);
+            }
             // Android 12+ 非信任触摸拦截：同 UID 悬浮窗"组合透明度"必须 ≤ 0.8 才豁免触摸穿透。
             // 此处按加法保守钳制（拖满双滑杆时等比缩小，视觉上只是略淡一点，绝不拦触摸）。
             if (w + d > 0.78f) {
@@ -187,6 +216,9 @@ public class EyeCareService extends Service {
                 dimLayer = null;
                 dimLp = null;
             }
+
+            persistState(context, warmLayer != null || dimLayer != null,
+                    warmColorHex == null ? "#FFB26B" : warmColorHex, w, d);
         } catch (Exception ignored) {
             // 悬浮窗应用失败不抛出，保持进程存活
         }

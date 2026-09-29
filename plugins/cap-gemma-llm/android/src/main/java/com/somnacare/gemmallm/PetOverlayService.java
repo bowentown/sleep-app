@@ -483,7 +483,7 @@ public class PetOverlayService extends Service {
                 main.postDelayed(bubbleHide, durationMs);
                 return;
             }
-            FrameLayout v = buildBubble(msg);
+            FrameLayout v = buildBubble(msg, currentSticker());
             v.setOnTouchListener((vv, e) -> {
                 if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE) hideBubble();
                 return false;

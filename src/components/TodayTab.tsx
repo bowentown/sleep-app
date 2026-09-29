@@ -98,7 +98,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
           </div>
 
           {/* 一句话结论放在最显眼的位置：数据表保留，但先给判断，再给依据。 */}
-          <p className="text-[13px] leading-relaxed text-slate-100 font-medium mb-3">
+          <p className="text-sm leading-relaxed text-slate-100 font-medium mb-3">
             {morningSummary}
           </p>
 
@@ -170,8 +170,8 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                   </div>
                 );
               })()}
-              <div className="pt-1 text-[10px] text-slate-500">
-                评分为按作息推演的模型估算值，非医疗诊断，仅作生活方式参考。
+              <div className="pt-1 text-xs text-slate-500">
+                模型估算值，非医疗诊断。
               </div>
               {latestRecord.sleepScore < 75 && (
                 <div className="pt-1 text-[11px] text-amber-300/90 font-medium">

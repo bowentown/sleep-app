@@ -172,7 +172,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
             </div>
             <div>
               <h3 className="text-sm font-black text-white">护眼滤镜</h3>
-              <p className="text-[10px] text-slate-400 flex items-center gap-1" aria-live="polite">
+              <p className="text-xs text-slate-400 flex items-center gap-1" aria-live="polite">
                 {active ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : null}
                 {statusLine}
                 {cfg.enabled && cfg.scheduleEnabled ? ` · 定时 ${cfg.start}–${cfg.end}` : ''}
@@ -210,7 +210,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
           </button>
         )}
         {!native && (
-          <p className="text-[10px] text-slate-500">网页预览仅应用内生效；安装 APK 后全系统生效</p>
+          <p className="text-xs text-slate-500">网页预览仅应用内生效；安装 APK 后全系统生效</p>
         )}
       </div>
 
@@ -238,7 +238,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
                   <Icon className="w-5 h-5 text-white/90" />
                 </div>
                 <span className={`text-xs font-bold ${selected ? 'text-orange-200' : 'text-white'}`}>{s.name}</span>
-                <span className="text-[9px] text-slate-400 leading-none">{s.desc}</span>
+                <span className="text-[11px] text-slate-400 leading-none">{s.desc}</span>
               </button>
             );
           })}
@@ -353,7 +353,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
         {cfg.scheduleEnabled && (
           <div className="grid grid-cols-2 gap-2.5">
             <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3`}>
-              <span className="text-[10px] text-slate-400 block mb-1">开始</span>
+              <span className="text-xs text-slate-400 block mb-1">开始</span>
               <input
                 type="time"
                 value={cfg.start}
@@ -363,7 +363,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
               />
             </div>
             <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3`}>
-              <span className="text-[10px] text-slate-400 block mb-1">结束</span>
+              <span className="text-xs text-slate-400 block mb-1">结束</span>
               <input
                 type="time"
                 value={cfg.end}
@@ -374,7 +374,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
             </div>
           </div>
         )}
-        <p className="text-[10px] text-slate-500">
+        <p className="text-xs text-slate-500">
           {cfg.scheduleEnabled
             ? '到点自动开、出窗自动关，支持跨午夜时段（如 22:00 – 07:00）'
             : '开启后按设定时间段自动开关滤镜'}

@@ -283,7 +283,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                   <HardDrive className="w-4 h-4 text-emerald-400" />
                   <span className="font-bold text-white">本地医学规则引擎 (Phase 0 深度增强)</span>
                 </div>
-                <span className="text-[10px] text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-600">
+                <span className="text-xs text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-600">
                   0MB 即刻可用 · 零延迟
                 </span>
               </div>
@@ -297,7 +297,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>已集成十大临床睡眠意图与生命安全护栏</span>
                 </div>
-                <p className="text-slate-300 text-[10px]">
+                <p className="text-slate-300 text-xs">
                   覆盖深睡提升、20分钟离床重置、早醒皮质醇应对、咖啡因腺苷代谢、危机热线即时阻断。
                 </p>
               </div>
@@ -312,7 +312,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                   <Cpu className="w-4 h-4 text-indigo-400" />
                   <span className="font-bold text-white">端侧小模型 · {getActiveModelLabel()}</span>
                 </div>
-                <span className="text-[10px] text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-600">
+                <span className="text-xs text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-600">
                   离线可用 · 隐私不上传
                 </span>
               </div>
@@ -376,7 +376,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                     placeholder="hf_xxxxxxxxxxxx"
                     className="w-full bg-[#0a0f1d] border border-slate-600 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-400"
                   />
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Gemma 为门控模型：在 huggingface.co 登录 → 打开 litert-community/gemma-3-1b-it →
                     同意许可 → Settings → Access Tokens 生成只读令牌粘贴于此。令牌仅保存在本机。
                   </p>
@@ -410,7 +410,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                     <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div style={{ width: `${llmProgress}%` }} className="h-full bg-indigo-500 transition-all duration-300" />
                     </div>
-                    <div className="text-right text-[10px] text-slate-500 font-mono">{llmProgress}%</div>
+                    <div className="text-right text-xs text-slate-500 font-mono">{llmProgress}%</div>
                   </div>
                 ) : llmCache?.cached ? (
                   <button
@@ -434,7 +434,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                 )}
               </div>
 
-              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 text-[10px] text-slate-400 leading-relaxed">
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs text-slate-400 leading-relaxed">
                 ⚡ 性能说明：本引擎在 WebView 内以 WASM 单线程运行（未开跨域隔离），生成速度约每秒几个字，适合睡前从容对话；
                 首次对话加载模型需数秒。模型文件缓存在本机私有存储，卸载应用或删除模型即彻底清除。
               </div>
@@ -471,7 +471,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                     type="button"
                     onClick={handleQueryRemoteModels}
                     disabled={isQueryingModels}
-                    className="text-[10px] text-indigo-300 hover:text-white flex items-center gap-1 font-bold bg-indigo-950 px-2 py-0.5 rounded border border-indigo-700/60 cursor-pointer"
+                    className="text-xs text-indigo-300 hover:text-white flex items-center gap-1 font-bold bg-indigo-950 px-2 py-0.5 rounded border border-indigo-700/60 cursor-pointer"
                   >
                     {isQueryingModels ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
                     <span>查询可用模型</span>
@@ -506,14 +506,14 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
 
                 {queriedModels.length > 0 && (
                   <div className="p-2 rounded-xl bg-slate-900 border border-slate-700 space-y-1">
-                    <span className="text-[10px] text-slate-400 block">端口支持的模型（点击选用）：</span>
+                    <span className="text-xs text-slate-400 block">端口支持的模型（点击选用）：</span>
                     <div className="flex flex-wrap gap-1">
                       {queriedModels.map((m) => (
                         <button
                           key={m}
                           type="button"
                           onClick={() => setDeepseekModel(m)}
-                          className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-950 text-indigo-200 border border-indigo-700"
+                          className="px-2 py-0.5 rounded text-xs font-mono bg-indigo-950 text-indigo-200 border border-indigo-700"
                         >
                           {m}
                         </button>
@@ -523,7 +523,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                 )}
 
                 {queryError && (
-                  <p className="text-[10px] text-amber-300 mt-1">{queryError}</p>
+                  <p className="text-xs text-amber-300 mt-1">{queryError}</p>
                 )}
               </div>
             </div>
@@ -570,7 +570,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                     type="button"
                     onClick={handleQueryRemoteModels}
                     disabled={isQueryingModels}
-                    className="text-[10px] text-emerald-300 hover:text-white flex items-center gap-1 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700 cursor-pointer"
+                    className="text-xs text-emerald-300 hover:text-white flex items-center gap-1 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700 cursor-pointer"
                   >
                     {isQueryingModels ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
                     <span>查询可用模型</span>
@@ -603,7 +603,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
           </div>
 
           {/* Privacy & Key Security Notice */}
-          <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 leading-relaxed">
+          <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400 leading-relaxed">
             🛡️ **存储与安全提示**：自配的 API Key 以明文形式保存在您当前设备浏览器的 LocalStorage 中，不会上传存储至我们的服务器；请勿在他人共用的公用设备上保存敏感 Key。
           </div>
         </div>

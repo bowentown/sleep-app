@@ -244,11 +244,19 @@ section('起床后的一句话总结');
   const sBest = buildMorningSummary(best, week, TARGET_MINUTES, '23:30');
   const sWorst = buildMorningSummary(worst, week, TARGET_MINUTES, '23:30');
 
-  check('总结里包含实际总睡眠时长', sBest.includes(formatDurationChinese(best.durationMinutes)), sBest);
-  check('总结里包含效率', sBest.includes(`${Math.round(best.sleepEfficiency)}%`), sBest);
+  // 总结只写「表格里没有的东西」：与目标的差值、本周极值。
+  // 总睡眠/效率/深睡分钟数在正下方的数据表里已经有了，复述一遍会让这一行
+  // 长一倍，读者还要在两组相同的数字之间对照。所以这里反过来断言
+  // 「不许出现」这些字段，防止以后又被加回去。
+  check('总结不复述数据表里的总睡眠时长', !sBest.includes('总睡眠'), sBest);
+  check('总结不复述数据表里的效率', !sBest.includes('效率'), sBest);
+  check('总结不复述数据表里的深睡分钟数', !sBest.includes('深睡'), sBest);
   check('本周最高分被称为「本周最好的一晚」', sBest.includes('本周最好的一晚'), sBest);
   check('本周最低分被称为「本周最差的一晚」', sWorst.includes('本周最差的一晚'), sWorst);
-  check('总结以句号结束', sBest.endsWith('。'), sBest);
+  // 长度上限：一句话总结就该是一行，不能长成一段。
+  check('总结不超过 52 字', sBest.length <= 52, `${sBest.length} 字：${sBest}`);
+  check('总结用 · 分段而不是逗号长句', sBest.includes(' · ') && !sBest.includes('，'), sBest);
+  check('总结不以句号结尾（它是标语而不是句子）', !sBest.endsWith('。'), sBest);
 
   // 跨午夜的早晚比较：就寝 23:15 早于目标 23:30 → 应说「早睡」
   const early = buildMorningSummary(

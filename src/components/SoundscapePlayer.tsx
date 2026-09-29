@@ -117,7 +117,7 @@ export const SoundscapePlayer: React.FC = () => {
         </div>
 
         {isPlaying && (
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-[10px] text-emerald-400 font-medium animate-pulse">
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-xs text-emerald-400 font-medium animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             播放中
           </span>
@@ -142,7 +142,7 @@ export const SoundscapePlayer: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-slate-100">{t.name}</span>
                   {t.category === 'meditation' && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
                       共振
                     </span>
                   )}

@@ -127,7 +127,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
                   <BedDouble className={`w-5 h-5 ${theme.accentText}`} />
                 </div>
                 <div>
-                  <h3 className={`text-base font-black tracking-wide ${bedtimeStatus.tone === 'daytime' ? 'text-white' : statusToneClass}`}>
+                  <h3 className={`text-[17px] font-black tracking-wide ${bedtimeStatus.tone === 'daytime' ? 'text-white' : statusToneClass}`}>
                     {bedtimeStatus.headline}
                   </h3>
                   <p className={`text-xs ${theme.textMuted} mt-0.5`}>{bedtimeStatus.detail}</p>
@@ -228,7 +228,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
             <div className="grid grid-cols-3 gap-2.5 mb-6">
               <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3`}>
                 <span className="text-xs text-slate-300 block mb-1 font-bold">实际时长</span>
-                <span className="text-base font-black font-mono text-white">
+                <span className="text-[17px] font-black font-mono text-white">
                   {completedRecord.durationMinutes < 60
                     ? `${completedRecord.durationMinutes}分钟`
                     : `${(completedRecord.durationMinutes / 60).toFixed(1)}h`}
@@ -236,13 +236,13 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
               </div>
               <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3`}>
                 <span className="text-xs text-slate-300 block mb-1 font-bold">深睡时长</span>
-                <span className="text-base font-black font-mono text-emerald-400">
+                <span className="text-[17px] font-black font-mono text-emerald-400">
                   {completedRecord.deepSleepMinutes}分
                 </span>
               </div>
               <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3`}>
                 <span className="text-xs text-slate-300 block mb-1 font-bold">睡眠效率</span>
-                <span className="text-base font-black font-mono text-indigo-300">
+                <span className="text-[17px] font-black font-mono text-indigo-300">
                   {completedRecord.sleepEfficiency}%
                 </span>
               </div>

@@ -195,6 +195,59 @@ for (const [mode, cfg] of Object.entries(APP_THEMES)) {
     `${cls} 在构建产物里找不到`);
 }
 
+// ============ 字号规范：只允许 6 档 ============
+// 起因：排版审计发现全项目用了 **14 档**字号，其中 9px / 10px 各出现 15 / 58 次——
+// 也就是说 App 的主体文字是 9–12px。字太小有两重代价：读起来费劲，而且因为
+// 一屏放不下多少字，文案会不自觉地越写越长。
+//
+// 现在收敛成 6 档，每档一个职责（不是「能用就行」，是「用在哪有明确规定」）：
+//
+//   text-[32px]  Display  主数字：评分环、闹钟时间、倒计时
+//   text-2xl     Metric   卡片头条数字：SRI 87.5、±45 分钟
+//   text-[17px]  Title    卡片标题、区块标题、页面主标题
+//   text-sm      Body     正文、列表值、按钮文字
+//   text-xs      Caption  标签、次要说明
+//   text-[11px]  Micro    全大写小标签；这是允许的最小值
+//
+// 这条断言是**强制执行**：以后再写 text-[10px] 或 text-[13px]，CI 会直接失败。
+// 只靠文档约定是拦不住的，字号是最容易被随手加一档的东西。
+{
+  const ALLOWED_ARBITRARY = new Set(['11px', '17px', '32px']);
+  const ALLOWED_NAMED = new Set(['xs', 'sm', '2xl']);
+  const SIZE_RE = /text-\[([0-9.]+px)\]|text-(xs|sm|base|lg|xl|2xl|3xl|4xl)\b/g;
+
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const e of readdirSync(dir)) {
+      const full = join(dir, e);
+      if (statSync(full).isDirectory()) out.push(...walk(full));
+      else if (full.endsWith('.tsx') || full.endsWith('.ts')) out.push(full);
+    }
+    return out;
+  };
+
+  const offenders: string[] = [];
+  const used = new Map<string, number>();
+  for (const file of walk(join(root, 'src'))) {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      for (const m of line.matchAll(SIZE_RE)) {
+        const token = m[0];
+        const arbitrary = m[1];
+        const named = m[2];
+        const ok = arbitrary ? ALLOWED_ARBITRARY.has(arbitrary) : ALLOWED_NAMED.has(named!);
+        used.set(token, (used.get(token) ?? 0) + 1);
+        if (!ok) offenders.push(`${file.replace(root + '/', '')}:${i + 1} → ${token}`);
+      }
+    });
+  }
+
+  check('字号档位不超过 6 档', used.size <= 6,
+    `实际 ${used.size} 档：${[...used.keys()].sort().join(', ')}`);
+  check('没有规范外的字号', offenders.length === 0,
+    `发现 ${offenders.length} 处：\n     ${offenders.slice(0, 12).join('\n     ')}`);
+}
+
 console.log(`\n${'='.repeat(60)}`);
 if (failures.length === 0) {
   console.log(`✅ 主题颜色类全部可用（${pass} 项）`);

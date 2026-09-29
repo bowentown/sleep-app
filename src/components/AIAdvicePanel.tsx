@@ -52,7 +52,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
       id: 'welcome',
       role: 'assistant',
       content:
-        '您好！我是您的睡眠顾问。根据您最近的作息记录与深睡比例，今晚有什么睡眠困扰需要我为您解答吗？',
+        '今晚有什么睡眠困扰？我可以结合你最近的作息给建议。',
       timestamp: '刚刚',
     },
   ]);
@@ -387,7 +387,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
               >
                 {msg.content}
               </div>
-              <span className="text-[9px] text-slate-500 mt-1 px-1 font-mono">{msg.timestamp}</span>
+              <span className="text-[11px] text-slate-500 mt-1 px-1 font-mono">{msg.timestamp}</span>
             </div>
           ))}
 
@@ -405,7 +405,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
                 <button
                   type="button"
                   onClick={() => localGenAbortRef.current?.abort()}
-                  className="ml-1 text-slate-400 hover:text-white border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] cursor-pointer"
+                  className="ml-1 text-slate-400 hover:text-white border border-slate-700 rounded-lg px-2 py-0.5 text-xs cursor-pointer"
                 >
                   停止
                 </button>
@@ -432,7 +432,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
                   懂睡眠 · 更懂你
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 font-mono">不知道从哪问起？试试这些：</p>
+              <p className="text-xs text-slate-500 font-mono">不知道从哪问起？试试这些：</p>
               {QUICK_PROMPTS.map((prompt, i) => (
                 <button
                   key={i}

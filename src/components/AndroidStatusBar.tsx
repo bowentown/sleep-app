@@ -30,7 +30,7 @@ export const AndroidStatusBar: React.FC<AndroidStatusBarProps> = ({
       <div className="flex items-center justify-between px-5 pt-2 pb-1.5 text-xs font-medium text-slate-200 tracking-tight">
         {/* Left: Clock & App icon */}
         <div className="flex items-center gap-2">
-          <span className="font-bold text-[13px] text-white tabular-nums">{timeStr}</span>
+          <span className="font-bold text-sm text-white tabular-nums">{timeStr}</span>
           <span className="flex items-center gap-1 text-[11px] text-indigo-300">
             <Moon className="w-3 h-3 text-indigo-400 fill-indigo-400/40" />
             <span className="text-[11px] text-slate-300 font-medium">夜间守护中</span>

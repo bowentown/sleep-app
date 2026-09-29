@@ -55,7 +55,7 @@ git push -u origin main`;
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Smartphone className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-base font-bold text-white">移动端安装与 GitHub 开源打包</h3>
+            <h3 className="text-[17px] font-bold text-white">移动端安装与 GitHub 开源打包</h3>
           </div>
           <button
             onClick={onClose}
@@ -140,7 +140,7 @@ git push -u origin main`;
                   <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
                     <div>
                       <span className="text-slate-300 font-medium">1. 下载全套源码压缩包</span>
-                      <p className="text-[10px] text-slate-500">Mac / Windows 双击直接解压</p>
+                      <p className="text-xs text-slate-500">Mac / Windows 双击直接解压</p>
                     </div>
                     <a
                       href="/somna-sleep-app-source.zip"
@@ -167,20 +167,20 @@ git push -u origin main`;
                       </span>
                       <button
                         onClick={handleCopyGitCmd}
-                        className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5"
+                        className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5"
                       >
                         {copiedGitCmd ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                         <span>{copiedGitCmd ? '已复制' : '复制命令'}</span>
                       </button>
                     </div>
-                    <pre className="text-[10px] font-mono text-slate-400 bg-slate-950 p-1.5 rounded overflow-x-auto max-h-24">
+                    <pre className="text-xs font-mono text-slate-400 bg-slate-950 p-1.5 rounded overflow-x-auto max-h-24">
                       {gitInitScript}
                     </pre>
                   </div>
 
                   <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
                     <div className="font-medium text-white">4. 自动生成并下载 APK：</div>
-                    <p className="text-slate-400 text-[10px] mt-0.5">
+                    <p className="text-slate-400 text-xs mt-0.5">
                       推送到 GitHub 后，仓库的 <strong>Actions</strong> 标签页会自动触发云端打包，完成后在 <strong>Artifacts</strong> 中即可直接点击下载打包好的 <code>.apk</code> 文件！
                     </p>
                   </div>

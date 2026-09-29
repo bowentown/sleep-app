@@ -193,7 +193,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
             </div>
             <div>
               <div className="text-xs font-bold text-amber-100">闹钟响铃中 · 晨安唤醒</div>
-              <h4 className="text-xl font-black">{activeRingingAlarm.time} {activeRingingAlarm.label}</h4>
+              <h4 className="text-2xl font-black">{activeRingingAlarm.time} {activeRingingAlarm.label}</h4>
             </div>
           </div>
           <button
@@ -230,19 +230,19 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
         </div>
 
         {!nativeStatus.isNative ? (
-          <p className="text-[10px] text-amber-300/90 font-medium whitespace-nowrap">
-            （Web 端需保持页面打开 · APK 版可离线唤醒）
+          <p className="text-xs text-amber-300/90 font-medium whitespace-nowrap">
+            （APK 可离线唤醒，Web 需保持打开）
           </p>
         ) : (
           <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-            <span className="text-[10px] font-black bg-emerald-950 text-emerald-300 border border-emerald-500/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs font-black bg-emerald-950 text-emerald-300 border border-emerald-500/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap">
               <ShieldCheck className="w-3 h-3 shrink-0" />
               <span>系统级精确唤醒已激活 ({nativeStatus.scheduledCount})</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
               杀进程与息屏均不影响响铃
             </span>
-            <span className="text-[10px] text-amber-300/90 font-medium whitespace-nowrap">
+            <span className="text-xs text-amber-300/90 font-medium whitespace-nowrap">
               若息屏未响：请允许自启动、省电设为“无限制”、调高通知音量
             </span>
           </div>
@@ -272,7 +272,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
               type="time"
               value={newTime}
               onChange={(e) => setNewTime(e.target.value)}
-              className="bg-transparent text-4xl font-black font-mono text-white focus:outline-none tracking-widest cursor-pointer"
+              className="bg-transparent text-[32px] font-black font-mono text-white focus:outline-none tracking-widest cursor-pointer"
             />
           </div>
 
@@ -350,7 +350,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                       )}
                     </button>
                   </div>
-                  <span className="text-[10px] text-slate-300 block mt-0.5">{t.desc}</span>
+                  <span className="text-xs text-slate-300 block mt-0.5">{t.desc}</span>
                 </div>
               ))}
             </div>
@@ -372,7 +372,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
             </div>
             {newSmartWake && (
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-slate-400 font-mono">1m</span>
+                <span className="text-xs text-slate-400 font-mono">1m</span>
                 <input
                   type="range"
                   min={1}
@@ -381,7 +381,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                   onChange={(e) => setNewSmartWindow(Number(e.target.value))}
                   className="flex-1 accent-indigo-500 cursor-pointer"
                 />
-                <span className="text-[10px] text-slate-400 font-mono">30m</span>
+                <span className="text-xs text-slate-400 font-mono">30m</span>
                 <span className="text-[11px] text-indigo-300 font-mono font-bold w-9 text-right tabular-nums">
                   {newSmartWindow}m
                 </span>

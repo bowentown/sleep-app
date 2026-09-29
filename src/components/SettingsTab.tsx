@@ -203,7 +203,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       ✓ 使用中
                     </span>
                   ) : (
-                    <span className="text-[10px] text-slate-400 font-medium">{t.tag}</span>
+                    <span className="text-xs text-slate-400 font-medium">{t.tag}</span>
                   )}
                 </div>
               </button>
@@ -255,7 +255,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </div>
 
         <p className="text-xs text-slate-300 font-medium">
-          云端直连 · 端侧小模型 · 本地规则引擎，三级自由切换
+          云端 · 端侧 · 本地，三级可切换
         </p>
       </div>
 
@@ -336,12 +336,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               if (untilBed < 0) untilBed += 1440;
               if (untilBed <= 90) {
                 return untilBed <= 15
-                  ? `⏰ 距目标就寝仅剩约 ${untilBed} 分钟——该开始减速了`
-                  : `🌙 距目标就寝约 ${Math.floor(untilBed / 60)}小时${untilBed % 60}分——适合现在启动睡前流程`;
+                  ? `⏰ 距目标就寝还有 ${untilBed} 分钟，该减速了`
+                  : `🌙 距目标就寝还有 ${Math.floor(untilBed / 60)}小时${untilBed % 60}分，适合开始睡前流程`;
               }
               return `🕐 距今晚目标就寝约 ${Math.floor(untilBed / 60)} 小时${untilBed % 60} 分`;
             })()}
-            。此目标将用于：睡眠评分基准、报告偏差分析与 AI 建议。
+            用于评分基准与 AI 建议。
           </p>
         </div>
       </div>
@@ -353,7 +353,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span className="text-sm font-bold text-white">数据备份</span>
           </div>
-          <span className={`text-[10px] ${theme.textMuted} font-mono`}>共 {records.length} 条记录</span>
+          <span className={`text-xs ${theme.textMuted} font-mono`}>共 {records.length} 条记录</span>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">

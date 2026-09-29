@@ -266,8 +266,15 @@ for (const [label, record] of cases) {
 
     // TodayTab：「深睡阶段 95分 · 21%」
     const todayPct = stripComments(todayHtml).match(/深睡阶段<\/span><span[^>]*>\d+分 · (\d+)%</)?.[1];
-    // SleepHypnogram：深睡统计块里的「21% (目标>18%)」（深睡是第一个带目标的块）
-    const hypnoPct = stripComments(hypnoHtml).match(/(\d+)% \(目标/)?.[1];
+    // SleepHypnogram 的深睡统计块（深睡是第一个带临床目标的块）。
+    // 占比与目标现在是两个 span：大字「21%」+ 小字「目标 18%」——
+    // 原来写成一串「21% (目标>18%)」，在四列窄格里必定折行。
+    const hypnoMatch = stripComments(hypnoHtml)
+      .match(/>([\d.]+)%<\/span><span[^>]*>目标 ([\d.]+)%</);
+    const hypnoPct = hypnoMatch?.[1];
+    const hypnoTarget = hypnoMatch?.[2];
+    check(`分期块写明深睡临床目标（${label}）`, hypnoTarget === '18',
+      `实际 ${hypnoTarget ?? '未解析'}——目标值被拆行时最容易顺手删掉，但它是「21% 算不算好」的唯一依据`);
     const expected = record.durationMinutes > 0
       ? Math.round((record.deepSleepMinutes / record.durationMinutes) * 100)
       : 0;
@@ -345,19 +352,20 @@ for (const [label, record] of cases) {
     /月龄 [\d.]+ 天/.test(overdue) && /月龄 [\d.]+ 天/.test(daytime),
     '两处都没有月龄数字');
 
-  // 一句话总结：报告卡顶部先给判断，再给数据表
-  check('报告卡顶部渲染了一句话总结',
-    /昨夜(睡得不错|整体还可以|睡得一般|睡得偏少)：/.test(overdue),
+  // 一句话总结：报告卡顶部先给判断，再给数据表。
+  // 它只该说表格里没有的东西（与目标的差值、本周极值）。原来把总睡眠和效率
+  // 也复述进来，正下方数据表里就有同样的两个数字，读者要对照两组相同的数。
+  const summarySeg = /(睡得不错|整体还可以|睡得一般|睡得偏少)[^<]*/.exec(overdue)?.[0] ?? '';
+  check('报告卡顶部渲染了一句话总结', summarySeg.length > 0,
     '未渲染出总结句的开场判断');
-  const first = one[0];
-  check('总结句包含该记录的实际总睡眠时长',
-    overdue.includes(formatDurationChinese(first.durationMinutes)),
-    `期望出现「${formatDurationChinese(first.durationMinutes)}」`);
-  check('总结句包含该记录的实际效率',
-    overdue.includes(`效率 ${Math.round(first.sleepEfficiency)}%`),
-    `期望出现「效率 ${Math.round(first.sleepEfficiency)}%」`);
+  check('总结句不复述正下方数据表里的数字',
+    summarySeg.length > 0
+      && summarySeg.length <= 52
+      && !summarySeg.includes('效率')
+      && !summarySeg.includes('总睡眠'),
+    `总结句 ${summarySeg.length} 字：「${summarySeg}」——复述表格里的数字会让这一行变长一倍`);
   check('总结句出现在数据表之前（先给判断）',
-    overdue.indexOf('昨夜睡得') < overdue.indexOf('总睡眠时长'),
+    overdue.indexOf(summarySeg) >= 0 && overdue.indexOf(summarySeg) < overdue.indexOf('总睡眠时长'),
     '总结句被排在数据表之后，读者仍要先读数字');
 
   // 目标时间脏数据不能崩，也不能显示假的比较
@@ -559,7 +567,7 @@ for (const [label, record] of cases) {
     `期望出现「${formatDurationChinese(debt.shortfallMinutes)}」，缺口 ${debt.shortfallMinutes} 分钟`);
   check('负债写明有几晚没睡够', html.includes(`${deficitNights} 晚没睡够目标`),
     `期望出现「${deficitNights} 晚没睡够目标」`);
-  check('负债卡说明盈余不能抵扣缺口', html.includes('不能把缺口抹平'),
+  check('负债卡说明盈余不能抵扣缺口', html.includes('不抵扣缺口'),
     '缺口与盈余必须分开说，否则读者会以为多睡一晚能抵掉欠的觉');
 
   check('规律性卡显示波动幅度', reg !== null && html.includes(`±${Math.round(reg.stdDevMinutes)} 分钟`),
@@ -710,7 +718,7 @@ for (const [label, record] of cases) {
   check('社交时差用统一时长口径显示',
     jetlag !== null && html.includes(formatDurationChinese(jetlag.jetlagMinutes)),
     '时长显示应与项目其它位置口径一致');
-  check('写明自由日按起床日归类', html.includes('按「起床日」区分自由日'),
+  check('写明自由日按起床日归类', html.includes('自由夜按「起床日」算'),
     '不写清楚，用户会把周日晚也算成自由夜');
   check('说明轮班作息不适用', html.includes('轮班作息不适用'),
     '只按星期几判断，必须声明这个限制');

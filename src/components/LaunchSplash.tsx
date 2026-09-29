@@ -199,7 +199,7 @@ export const LaunchSplash: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
         style={{ top: 'calc(38% + 140px)', opacity: 0, animation: 'splash-rise 700ms ease-out 2050ms both' }}
       >
         <p
-          className="text-[22px] font-black text-white"
+          className="text-2xl font-black text-white"
           style={{ letterSpacing: '0.3em', paddingLeft: '0.3em' }}
         >
           极光睡眠
@@ -212,7 +212,7 @@ export const LaunchSplash: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
         style={{ top: 'calc(38% + 182px)', opacity: 0, animation: 'splash-rise 750ms ease-out 2250ms both' }}
       >
         <p
-          className="text-[14px] text-slate-300 whitespace-nowrap"
+          className="text-sm text-slate-300 whitespace-nowrap"
           style={{
             letterSpacing: '0.42em',
             paddingLeft: '0.42em',

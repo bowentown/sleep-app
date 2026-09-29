@@ -200,25 +200,26 @@ export function buildMorningSummary(
   // 开场：按评分档位，与首页评分环的档位保持一致
   const opener =
     record.sleepScore >= 88
-      ? '昨夜睡得不错'
+      ? '睡得不错'
       : record.sleepScore >= 78
-        ? '昨夜整体还可以'
+        ? '整体还可以'
         : record.sleepScore >= 68
-          ? '昨夜睡得一般'
-          : '昨夜睡得偏少';
+          ? '睡得一般'
+          : '睡得偏少';
 
-  const parts: string[] = [
-    `总睡眠 ${formatDurationChinese(record.durationMinutes)}`,
-    `效率 ${Math.round(record.sleepEfficiency)}%`,
-  ];
+  // 这里**只写增量信息**。总睡眠、效率、深睡分钟数在正下方的数据表里已经有了，
+  // 复述一遍会让这一行变长一倍，读者还要在两组相同的数字之间对照。
+  // 一句话总结的价值在于「把数字翻译成判断」，以及说出表格里没有的东西：
+  // 与目标的差值、本周极值。
+  const parts: string[] = [];
 
   // 总睡眠与目标的差。低于 15 分钟不提，避免把噪声当结论。
   const deltaDuration = record.durationMinutes - targetDurationMinutes;
   if (Math.abs(deltaDuration) >= 15) {
     parts.push(
       deltaDuration > 0
-        ? `比目标多睡 ${formatDurationChinese(deltaDuration)}`
-        : `比目标少睡 ${formatDurationChinese(-deltaDuration)}`
+        ? `多睡 ${formatDurationChinese(deltaDuration)}`
+        : `少睡 ${formatDurationChinese(-deltaDuration)}`
     );
   }
 
@@ -230,8 +231,8 @@ export function buildMorningSummary(
     if (Math.abs(deltaBed) >= 15) {
       parts.push(
         deltaBed < 0
-          ? `比目标早睡 ${formatDurationChinese(-deltaBed)}`
-          : `比目标晚睡 ${formatDurationChinese(deltaBed)}`
+          ? `早睡 ${formatDurationChinese(-deltaBed)}`
+          : `晚睡 ${formatDurationChinese(deltaBed)}`
       );
     }
   }
@@ -244,12 +245,14 @@ export function buildMorningSummary(
     const max = Math.max(...scores);
     const min = Math.min(...scores);
     if (max !== min) {
-      if (record.sleepScore === max) superlative = '，这是本周最好的一晚';
-      else if (record.sleepScore === min) superlative = '，是本周最差的一晚';
+      if (record.sleepScore === max) superlative = ' · 本周最好的一晚';
+      else if (record.sleepScore === min) superlative = ' · 本周最差的一晚';
     }
   }
 
-  return `${opener}：${parts.join('，')}${superlative}。`;
+  // 「比目标」只写一次，两个差值用顿号并列：比目标少睡 24分钟、晚睡 15分钟。
+  // 每个差值各带一次「比目标」会显得啰嗦，而去掉它又不知道在跟什么比。
+  return `${opener}${parts.length ? ' · 比目标' + parts.join('、') : ''}${superlative}`;
 }
 
 export interface TargetTimeline {

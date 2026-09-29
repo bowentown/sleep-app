@@ -31,10 +31,10 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#070a12] text-white flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xl mb-4 border border-indigo-500/40">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-2xl mb-4 border border-indigo-500/40">
             🌙
           </div>
-          <h2 className="text-lg font-bold mb-2">应用界面出现小状况</h2>
+          <h2 className="text-[17px] font-bold mb-2">应用界面出现小状况</h2>
           <p className="text-xs text-slate-400 mb-5 max-w-xs leading-relaxed">
             数据已安全缓存在本地，点击下方按钮即可重新加载。
           </p>

@@ -425,7 +425,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
                   重新尝试访问麦克风
                 </button>
               )}
-              <p className={`text-[10px] ${theme.textMuted}`}>
+              <p className={`text-xs ${theme.textMuted}`}>
                 （真实麦克风采样估算，未声学校准 ±10 dB；数据仅本机实时计算，不录制不存储）
               </p>
             </div>
@@ -459,7 +459,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
                   >
                     <Icon className={`w-4 h-4 ${active ? theme.accentText : theme.textMuted}`} />
                     <span>{s.label}</span>
-                    <span className={`text-[10px] ${theme.textMuted}`}>{s.desc}</span>
+                    <span className={`text-xs ${theme.textMuted}`}>{s.desc}</span>
                   </button>
                 );
               })}
@@ -473,7 +473,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
             <div className="inline-flex p-3 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-2">
               <Sparkles className="w-6 h-6" />
             </div>
-            <h3 className={`text-xl font-bold ${theme.textPrimary}`}>早安！醒来晨检</h3>
+            <h3 className={`text-2xl font-bold ${theme.textPrimary}`}>早安！醒来晨检</h3>
             <p className={`text-xs ${theme.textMuted} mt-1`}>记录清晨主观感受，结合超昼夜节律模型生成睡眠报告（估算参考）</p>
           </div>
 

@@ -255,7 +255,7 @@ export const App: React.FC = () => {
             <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
               <Moon className="w-5 h-5 fill-white/40" />
             </div>
-            <h1 className="text-xl font-black tracking-tight text-white">
+            <h1 className="text-2xl font-black tracking-tight text-white">
               极光睡眠
             </h1>
           </div>

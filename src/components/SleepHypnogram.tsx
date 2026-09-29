@@ -3,6 +3,7 @@ import { SleepRecord, SleepStage } from '../types/sleep';
 import { ThemeConfig } from '../utils/themeStyles';
 import { SLEEP_STAGE_COLORS } from '../utils/sleepStageColors';
 import { buildTargetTimeline, describeDelta } from '../utils/sleepInsights';
+import { InfoNote } from './InfoNote';
 
 interface SleepHypnogramProps {
   record: SleepRecord;
@@ -118,7 +119,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
       {/* SVG Timeline Chart */}
       <div className={`relative w-full h-36 select-none ${innerBg} rounded-2xl p-2.5 border ${innerBorder} shadow-inner`}>
         {/* Stage Y-axis labels */}
-        <div className={`absolute left-2.5 top-2.5 bottom-6 flex flex-col justify-between text-[10px] ${textMuted} font-semibold pointer-events-none z-10`}>
+        <div className={`absolute left-2.5 top-2.5 bottom-6 flex flex-col justify-between text-xs ${textMuted} font-semibold pointer-events-none z-10`}>
           <span className="text-rose-400">清醒</span>
           <span className="text-indigo-300">REM</span>
           <span className="text-sky-300">浅睡</span>
@@ -138,7 +139,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
         </svg>
 
         {/* Time X-axis */}
-        <div className={`absolute left-10 right-2 bottom-1 flex justify-between text-[10px] ${textSecondary} font-mono font-medium`}>
+        <div className={`absolute left-10 right-2 bottom-1 flex justify-between text-xs ${textSecondary} font-mono font-medium`}>
           <span>{record.bedtime}</span>
           <span>{getMidpointTime(record.bedtime, record.wakeTime)}</span>
           <span>{record.wakeTime}</span>
@@ -152,11 +153,13 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
              方块完全重复。改成把「就寝比目标早 15 分钟」这件只停留在文字上的
              信息画出来：实际睡眠区间是实心条，目标是两根刻度。 */
           <>
-            <div className="flex items-center justify-between text-[9px] mb-1 gap-2">
+            <div className="flex items-center justify-between text-[11px] mb-1 gap-2">
               <span className={`${textSecondary} font-medium shrink-0`}>昨夜 vs 目标</span>
+              {/* 时间轴已经把目标与实际都画出来了，下面还有一行解释白色刻度的含义，
+                  卡片标题也已经有 23:15 – 07:10。所以这里只留两个差值，不复述钟点：
+                  原来那串「就寝 23:15（早 15分钟）· 起床 07:10（早 20分钟）」在窄屏上会被截断。 */}
               <span className={`font-mono ${textMuted} truncate`}>
-                就寝 {record.bedtime}（{describeDelta(timeline.bedDeltaMinutes)}）· 起床 {record.wakeTime}（
-                {describeDelta(timeline.wakeDeltaMinutes)}）
+                就寝 {describeDelta(timeline.bedDeltaMinutes)} · 起床 {describeDelta(timeline.wakeDeltaMinutes)}
               </span>
             </div>
             <div className="relative h-7">
@@ -181,7 +184,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
                 title={`目标起床 ${targetWakeTime}`}
               />
             </div>
-            <div className={`flex justify-between text-[9px] font-mono ${textMuted} mt-0.5`}>
+            <div className={`flex justify-between text-[11px] font-mono ${textMuted} mt-0.5`}>
               <span>{timeline.startLabel}</span>
               <span>白色刻度 = 目标就寝 / 目标起床</span>
               <span>{timeline.endLabel}</span>
@@ -204,7 +207,8 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
               <span className={`text-xs ${textSecondary} font-medium`}>深睡</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.deepSleepMinutes}分</span>
-            <span className="text-[10px] text-indigo-400 font-mono font-medium">{deepShareOfTst}% (目标&gt;18%)</span>
+            <span className="block text-xs text-indigo-400 font-mono font-medium">{deepShareOfTst}%</span>
+            <span className={`block text-[11px] ${textMuted} font-mono`}>目标 18%</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
@@ -213,7 +217,7 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
               <span className={`text-xs ${textSecondary} font-medium`}>浅睡</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.lightSleepMinutes}分</span>
-            <span className="text-[10px] text-sky-300 font-mono font-medium">{lightShareOfTst}%</span>
+            <span className="text-xs text-sky-300 font-mono font-medium">{lightShareOfTst}%</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
@@ -222,7 +226,8 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
               <span className={`text-xs ${textSecondary} font-medium`}>REM</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.remSleepMinutes}分</span>
-            <span className="text-[10px] text-pink-400 font-mono font-medium">{remShareOfTst}% (目标&gt;20%)</span>
+            <span className="block text-xs text-pink-400 font-mono font-medium">{remShareOfTst}%</span>
+            <span className={`block text-[11px] ${textMuted} font-mono`}>目标 20%</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
@@ -231,14 +236,15 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
               <span className={`text-xs ${textSecondary} font-medium`}>清醒</span>
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.awakeMinutes}分</span>
-            <span className="text-[10px] text-orange-300 font-mono font-medium">占卧床 {awakePercent}%</span>
+            <span className="text-xs text-orange-300 font-mono font-medium">占卧床 {awakePercent}%</span>
           </div>
         </div>
 
-        <p className={`mt-2 text-[9px] ${textMuted} leading-relaxed`}>
-          深睡 / 浅睡 / REM 占比为占「总睡眠时长」，与临床目标同口径；清醒为占「卧床时长」。
-          四段之和等于卧床时长（清醒含入睡潜伏期），因此不与上面三个占比同基准。
-        </p>
+        <div className="mt-2">
+          <InfoNote theme={theme}>
+            深睡 / 浅睡 / REM 占比按「总睡眠时长」计；清醒按「卧床时长」计，两者基准不同。
+          </InfoNote>
+        </div>
       </div>
     </div>
   );

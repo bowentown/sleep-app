@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { SleepRecord } from '../types/sleep';
 import { formatDurationChinese } from '../utils/sleepScore';
+import { InfoNote } from './InfoNote';
 import { SLEEP_STAGE_COLORS } from '../utils/sleepStageColors';
 import {
   computeSleepDebt,
@@ -204,21 +205,35 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
       <div className="grid grid-cols-3 gap-2">
         <div className={`${theme.cardBg} rounded-2xl p-3 border ${theme.cardBorder} text-center`}>
           <span className={`text-[11px] font-medium ${theme.textMuted} block`}>近7日均分</span>
-          <span className={`text-xl font-black font-mono ${accentText} tabular-nums`}>{avgScore}</span>
+          <span className={`text-2xl font-black font-mono ${accentText} tabular-nums`}>{avgScore}</span>
         </div>
 
         <div className={`${theme.cardBg} rounded-2xl p-3 border ${theme.cardBorder} text-center`}>
           <span className={`text-[11px] font-medium ${theme.textMuted} block`}>日均睡眠</span>
-          <span className="text-xl font-black font-mono text-white tabular-nums">
-            {/* 全 app 其它地方都写「7小时36分」，这里原本是「7.0h」，
-                同一个量在两处用了不同单位。 */}
-            {formatDurationChinese(avgDuration)}
+          {/* 数字大字、单位小字。
+              实测：「7小时3分」整串按 24px 排需要约 91px，而这个格子可用宽只有 90px，
+              差 1px 就折行；真机数据出现「10小时12分」时更宽。把「小时/分」降到 11px
+              后，最宽的四位数时长也只占约 80px，且数字反而更突出。
+              全 app 其它地方仍写「7小时36分」，这里只是排版上拆开，单位写法不变。 */}
+          <span className="inline-flex items-baseline gap-0.5">
+            <span className="text-2xl font-black font-mono text-white tabular-nums">
+              {Math.floor(avgDuration / 60)}
+            </span>
+            <span className={`text-[11px] font-medium ${theme.textMuted}`}>小时</span>
+            {avgDuration % 60 > 0 && (
+              <>
+                <span className="text-2xl font-black font-mono text-white tabular-nums">
+                  {Math.round(avgDuration % 60)}
+                </span>
+                <span className={`text-[11px] font-medium ${theme.textMuted}`}>分</span>
+              </>
+            )}
           </span>
         </div>
 
         <div className={`${theme.cardBg} rounded-2xl p-3 border ${theme.cardBorder} text-center`}>
           <span className={`text-[11px] font-medium ${theme.textMuted} block`}>深睡占比</span>
-          <span className="text-xl font-black font-mono text-emerald-400 tabular-nums">{avgDeepRatio}%</span>
+          <span className="text-2xl font-black font-mono text-emerald-400 tabular-nums">{avgDeepRatio}%</span>
         </div>
       </div>
 
@@ -233,22 +248,21 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
             本周睡眠负债
           </span>
-          <span className={`text-xl font-black font-mono tabular-nums ${debt.shortfallMinutes > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+          <span className={`text-2xl font-black font-mono tabular-nums ${debt.shortfallMinutes > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
             {debt.shortfallMinutes > 0 ? formatDurationChinese(debt.shortfallMinutes) : '无负债'}
           </span>
         </div>
-        <p className={`text-[10px] ${theme.textMuted} leading-relaxed`}>
+        <p className={`text-xs ${theme.textMuted} leading-relaxed`}>
           {debt.days === 0
             ? '还没有记录，无法计算累计缺口'
             : debt.shortfallMinutes > 0
-              ? `近 ${debt.days} 晚中有 ${deficitNights} 晚没睡够目标，累计缺口 ${formatDurationChinese(debt.shortfallMinutes)}`
+              ? `近 ${debt.days} 晚有 ${deficitNights} 晚没睡够目标`
               : `近 ${debt.days} 晚每晚都达到了目标时长`}
           {debt.surplusMinutes > 0 && debt.shortfallMinutes > 0 && (
             <>
               {' '}
               <span className="text-slate-500">
-                （另有 {formatDurationChinese(debt.surplusMinutes)} 盈余不计入抵扣：少睡一晚要两晚才补得回，
-                多睡一晚并不能把缺口抹平）
+                （另有 {formatDurationChinese(debt.surplusMinutes)} 盈余，不抵扣缺口）
               </span>
             </>
           )}
@@ -263,7 +277,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               就寝规律性
             </span>
             {regularity ? (
-              <span className={`text-xl font-black font-mono tabular-nums ${regularityClass}`}>
+              <span className={`text-2xl font-black font-mono tabular-nums ${regularityClass}`}>
                 {`±${Math.round(regularity.stdDevMinutes)} 分钟`}
               </span>
             ) : (
@@ -307,12 +321,12 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                   );
                 })()}
               </div>
-              <div className={`flex justify-between text-[10px] font-mono ${textMuted}`}>
+              <div className={`flex justify-between text-xs font-mono ${textMuted}`}>
                 <span>{fromMinutesSinceNoon(regularity.minMinutes)}</span>
                 <span>平均 {regularity.meanBedtime} 就寝</span>
                 <span>{fromMinutesSinceNoon(regularity.maxMinutes)}</span>
               </div>
-              <p className={`text-[10px] ${theme.textMuted}`}>
+              <p className={`text-xs ${theme.textMuted}`}>
                 最早与最晚相差 {formatDurationChinese(regularity.spanMinutes)} ·{' '}
                 {regularity.stdDevMinutes < 30
                   ? '作息很稳定，继续保持'
@@ -322,7 +336,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               </p>
             </>
           ) : (
-            <p className={`text-[10px] ${theme.textMuted}`}>至少需要 2 晚记录才能算出就寝时间的波动幅度</p>
+            <p className={`text-xs ${theme.textMuted}`}>至少需要 2 晚记录才能算出就寝时间的波动幅度</p>
           )}
 
           {/* 本周最佳一晚。图里那个最高点其实已经在说这件事，但要读出它得先看懂曲线；
@@ -330,7 +344,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               放在卡片最后：先讲问题（欠了多少、乱不乱），再给一个正向的锚点。 */}
           {bestNight && (
             <div className={`pt-3 border-t ${theme.cardInnerBorder} flex items-baseline justify-between gap-3`}>
-              <span className={`text-[10px] ${theme.textMuted} shrink-0`}>本周最佳</span>
+              <span className={`text-xs ${theme.textMuted} shrink-0`}>本周最佳</span>
               <span className="text-[11px] font-bold text-white truncate">
                 {bestNight.date.slice(5)} · {bestNight.sleepScore} 分
                 <span className={`${theme.textMuted} font-normal`}> · 睡了 {formatDurationChinese(bestNight.durationMinutes)}</span>
@@ -373,36 +387,35 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                 style={{ left: `calc(${Math.max(0, Math.min(100, sri.sri))}% - 1.5px)` }}
               />
             </div>
-            <div className={`flex justify-between text-[9px] font-mono ${theme.textMuted}`}>
+            <div className={`flex justify-between text-[11px] font-mono ${theme.textMuted}`}>
               <span>0 很不规律</span>
               <span>队列 IQR {SRI_COHORT_Q1}–{SRI_COHORT_Q3}</span>
               <span>100 极规律</span>
             </div>
-            <p className={`text-[10px] ${theme.textMuted} leading-relaxed`}>
+            <p className={`text-xs ${theme.textMuted} leading-relaxed`}>
               {describeSRI(sri.sri)}
             </p>
-            {/* 这一段必须留着：不说清楚口径差异，用户会拿自己的自报数值
-                去跟加速度计队列比，得出错误结论。 */}
-            <p className={`text-[9px] ${theme.textMuted} opacity-70 leading-relaxed`}>
-              SRI 为 24 小时前后处于同一睡/醒状态的概率（Phillips 等，2017），
-              此处按<strong className="font-bold">自报卧床区间</strong>估算；
-              {/* 合成文案一律用模板字符串：JSX 里写成「… {n} …」的形式会被 React
-                  拆成多个文本节点，中间插入 <!-- -->，后续任何按整句匹配的断言
-                  都会断在注释上（本项目在批次 4 已经踩过一次）。 */}
-              {`参考区间取自 6 万人加速度计队列的中位数 ${SRI_COHORT_MEDIAN}（Windred 等，2024）。`}
-              两者测量方式不同，请以自己的历史变化为准。
-              {`已比较 ${sri.comparedDayPairs} 个相邻日对。`}
-            </p>
+            {/* 口径说明默认收起，但内容必须留在 DOM 里：删掉它用户就会拿
+                自报数值去跟加速度计队列直接比，结论是错的。
+                合成文案用数组 join，避免被 React 拆成多个文本节点
+                （中间会插 <!-- -->，整句匹配的断言会断在注释上）。 */}
+            <InfoNote theme={theme}>
+              {[
+                'SRI 是 24 小时前后处于同一睡/醒状态的概率（Phillips 等，2017），按自报卧床区间估算。',
+                `参考区间取自 6 万人加速度计队列的中位数 ${SRI_COHORT_MEDIAN}（Windred 等，2024）。`,
+                `两者测量方式不同，请以自己的历史变化为准。已比较 ${sri.comparedDayPairs} 个相邻日对。`,
+              ].join('')}
+            </InfoNote>
           </div>
         ) : (
-          <p className={`text-[10px] ${theme.textMuted}`}>
-            需要至少两晚<strong className="font-bold">连续</strong>记录才能算出规律性指数（中间缺一天会让它两侧的比较失效）。
+          <p className={`text-xs ${theme.textMuted}`}>
+            需要至少两晚<strong className="font-bold">连续</strong>记录才能算出规律性指数。
           </p>
         )}
 
         {midpoint && (
           <div className={`pt-3 border-t ${theme.cardInnerBorder} flex items-baseline justify-between gap-3`}>
-            <span className={`text-[10px] ${theme.textMuted} shrink-0`}>睡眠中点</span>
+            <span className={`text-xs ${theme.textMuted} shrink-0`}>睡眠中点</span>
             <span className="text-[11px] font-bold text-white truncate">
               {formatRhythmClock(midpoint.midpointMinutes)}
               <span className={`${theme.textMuted} font-normal`}>
@@ -413,15 +426,15 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         )}
 
         {midpoint && midpoint.resultantLength < 0.7 && (
-          <p className={`text-[9px] text-amber-400/80 leading-relaxed`}>
-            集中度偏低意味着各晚中点散得很开，这时「平均中点」本身代表性不强，别把它当作固定作息。
+          <p className={`text-[11px] text-amber-400/80 leading-relaxed`}>
+            集中度偏低：各晚中点散得开，平均值代表性不强。
           </p>
         )}
 
         {socialJetlag && (
           <>
             <div className={`pt-3 border-t ${theme.cardInnerBorder} flex items-baseline justify-between gap-3`}>
-              <span className={`text-[10px] ${theme.textMuted} shrink-0`}>社交时差</span>
+              <span className={`text-xs ${theme.textMuted} shrink-0`}>社交时差</span>
               <span className="text-[11px] font-bold text-white truncate">
                 {formatDurationChinese(socialJetlag.jetlagMinutes)}
                 <span className={`${theme.textMuted} font-normal`}>
@@ -430,14 +443,13 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                 </span>
               </span>
             </div>
-            <p className={`text-[10px] ${theme.textMuted} leading-relaxed`}>
+            <p className={`text-xs ${theme.textMuted} leading-relaxed`}>
               {describeSocialJetlag(socialJetlag.jetlagMinutes)}
               {socialJetlag.signedMinutes < 0 && '（你的自由日反而偏早）'}
             </p>
-            <p className={`text-[9px] ${theme.textMuted} opacity-70 leading-relaxed`}>
-              按「起床日」区分自由日：周五晚与周六晚算自由夜，周日晚算工作日（因为周一要早起）。
-              只按星期几判断，轮班作息不适用。
-            </p>
+            <InfoNote theme={theme}>
+              自由夜按「起床日」算：周五晚与周六晚是自由夜，周日晚不是。只按星期几判断，轮班作息不适用。
+            </InfoNote>
           </>
         )}
       </div>
@@ -610,7 +622,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                 )}
               </svg>
 
-              <div className={`text-right text-[9px] ${textMuted} font-mono`}>
+              <div className={`text-right text-[11px] ${textMuted} font-mono`}>
                 纵轴 {axisLo}–{axisHi} 分（按本周实际得分自适应）
               </div>
 
@@ -618,7 +630,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                   原先用 justify-between：它把首尾标签的「边缘」贴到两端，而数据点中心在
                   0% / 100%，实测标签中心比点偏内 15.1px（中间那个点偏移为 0，正好印证）。
                   现在两侧各留 LABEL_PAD_PCT，标签不再跨出内框边框。 */}
-              <div className={`relative h-4 border-t ${innerBorder} text-[10px] ${textMuted} font-mono`}>
+              <div className={`relative h-4 border-t ${innerBorder} text-xs ${textMuted} font-mono`}>
                 {last7Records.map((r, i) => {
                   return (
                     <span
@@ -689,7 +701,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                           点击后是持续保留的，触屏上点一下就会一直看不到日期。
                           具体数字改到图下方那行明细里给出。 */}
                       <span
-                        className={`text-[9px] font-mono mt-1 whitespace-nowrap ${
+                        className={`text-[11px] font-mono mt-1 whitespace-nowrap ${
                           isHovered ? accentText + ' font-bold' : textMuted
                         }`}
                       >
@@ -702,14 +714,14 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
 
               {/* 选中那晚的明细。柱子只能表达比例，具体数字放这里，
                   不再往 40px 宽的列里塞。默认显示最近一晚，点柱子可切换。 */}
-              <div className={`mt-2 text-[10px] font-mono ${textSecondary} flex flex-wrap justify-center gap-x-2 gap-y-0.5`}>
+              <div className={`mt-2 text-xs font-mono ${textSecondary} flex flex-wrap justify-center gap-x-2 gap-y-0.5`}>
                 <span className={`${accentText} font-bold`}>{activeRecord.date.slice(5)}</span>
                 <span>卧床 {formatDurationChinese(activeRecord.durationMinutes + activeRecord.awakeMinutes)}</span>
                 <span className={textMuted}>·</span>
                 <span>总睡眠 {formatDurationChinese(activeRecord.durationMinutes)}</span>
               </div>
 
-              <div className={`flex flex-col items-center gap-1 pt-1 border-t ${innerBorder} text-[10px] ${textSecondary}`}>
+              <div className={`flex flex-col items-center gap-1 pt-1 border-t ${innerBorder} text-xs ${textSecondary}`}>
                 {/* 图例顺序必须与柱子的堆叠顺序一致（自下而上 深睡→浅睡→REM→清醒），
                     否则读者会以为图例是从上往下对应的。
                     颜色统一来自 utils/sleepStageColors：这里原先「深睡」用的是
@@ -728,7 +740,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                     <span className={`w-2.5 h-2.5 rounded-sm ${SLEEP_STAGE_COLORS.awake.className}`} />清醒
                   </span>
                 </div>
-                <span className={`text-[9px] ${textMuted} font-sans text-center`}>
+                <span className={`text-[11px] ${textMuted} font-sans text-center`}>
                   柱高 = 当晚卧床时长，色块 = 各阶段占比（四段合计 100%）<br />
                   * 睡眠分期为基于作息起止点与超昼夜节律的模型估算值，非临床医疗设备检测
                 </span>
@@ -741,7 +753,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         {viewMode === 'circadian' && (
           <div className="space-y-2 animate-in fade-in">
             <div className={`${theme.cardInnerBg} rounded-2xl p-3 border ${theme.cardInnerBorder} space-y-2`}>
-              <div className={`flex justify-between text-[10px] ${textMuted} font-mono pb-1 border-b ${innerBorder}`}>
+              <div className={`flex justify-between text-xs ${textMuted} font-mono pb-1 border-b ${innerBorder}`}>
                 <span>21:00</span>
                 <span>00:00</span>
                 <span>03:00</span>
@@ -769,7 +781,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                     className="flex items-center gap-2 cursor-pointer group"
                   >
                     <span
-                      className={`w-9 text-[10px] font-mono shrink-0 ${
+                      className={`w-9 text-xs font-mono shrink-0 ${
                         isHovered ? accentText + ' font-bold' : textMuted
                       }`}
                     >
@@ -785,8 +797,8 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                         }}
                         className="absolute top-0.5 bottom-0.5 rounded flex items-center justify-between px-1.5"
                       >
-                        <span className="text-[9px] font-mono text-white">{r.bedtime}</span>
-                        <span className="text-[9px] font-mono text-white">{r.wakeTime}</span>
+                        <span className="text-[11px] font-mono text-white">{r.bedtime}</span>
+                        <span className="text-[11px] font-mono text-white">{r.wakeTime}</span>
                       </div>
                     </div>
                   </div>
@@ -806,7 +818,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         >
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-white">历史睡眠数据记录</span>
-            <span className={`text-[10px] ${textMuted} font-mono ${innerBg} px-2 py-0.5 rounded-full border ${innerBorder}`}>
+            <span className={`text-xs ${textMuted} font-mono ${innerBg} px-2 py-0.5 rounded-full border ${innerBorder}`}>
               共 {records.length} 条
             </span>
           </div>

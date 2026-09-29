@@ -11,7 +11,7 @@ import { SleepHypnogram } from './SleepHypnogram';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { OneTapSleepTracker } from './OneTapSleepTracker';
 import { ThemeConfig } from '../utils/themeStyles';
-import { buildMorningSummary, describeWeekExtreme, describeDelta, minutesSinceNoon } from '../utils/sleepInsights';
+import { buildMorningSummary, describeWeekExtreme, describeDelta, minutesSinceNoon, describeVsSelf } from '../utils/sleepInsights';
 
 interface TodayTabProps {
   records: SleepRecord[];
@@ -58,6 +58,11 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   };
 
   const scoreInfo = latestRecord ? getScoreColor(latestRecord.sleepScore) : getScoreColor(85);
+
+  // 「和你自己比」。放在分数**之前**：睡眠领域唯一一项 MRT 实测（Takeuchi 2024）
+  // 有效的形式就是自指对照，而不是给一个绝对分数；且它对本来睡眠稳定的组完全无效应。
+  // 可用晚数不足时 describeVsSelf 返回 null，此处不显示——宁可不给，也不给不可靠的数。
+  const vsSelf = describeVsSelf(records);
 
   // 起床后的一句话总结。报告卡本身是一张数据表，人得自己把数字翻译成结论；
   // 这句话只做「把已有数字串成一个判断」，比较的对象（目标时长、目标就寝、
@@ -113,9 +118,18 @@ export const TodayTab: React.FC<TodayTabProps> = ({
             {morningSummary}
           </p>
 
+          {/* 自指对照放在分数之前。
+              分数是「绝对判定」，这条是「相对你自己的变化」——后者才是被实测验证有效的形式。
+              同时分数环整体降一级（w-20→w-16、text-2xl→text-[17px]）：
+              它 40 分来自推演的分期，且深睡分在实测输入下几乎恒为满分，
+              原来的视觉权重（整张卡最大的元素）与它能承载的信息量不匹配。 */}
+          {vsSelf && (
+            <p className="text-sm leading-relaxed text-slate-100 mb-2">{vsSelf.text}</p>
+          )}
+
           <div className="flex items-center justify-between gap-5 my-1">
-            {/* Score Ring */}
-            <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+            {/* Score Ring（已降级：不再抢占视觉主导权） */}
+            <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="40" stroke="#334155" strokeWidth="8" fill="none" />
                 <circle
@@ -131,7 +145,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                 />
               </svg>
               <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-2xl font-black font-mono text-white tabular-nums leading-none">
+                <span className="text-[17px] font-black font-mono text-white tabular-nums leading-none">
                   {displayScore}
                 </span>
                 <span className={`text-[11px] font-black mt-1 ${scoreInfo.text}`}>
@@ -190,7 +204,8 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                 );
               })()}
               <div className="pt-1 text-xs text-slate-500">
-                时长与就寝为你的实际记录；深睡分期由作息推演，手机无法测量，非医疗诊断。
+                时长与就寝为你的实际记录；深睡分期由作息推演，手机无法测量。
+                综合评分含 40 分的推演分期，仅供你与自己比较，非医疗诊断。
               </div>
               {latestRecord.sleepScore < 75 && (
                 <div className="pt-1 text-[11px] text-amber-300/90 font-medium">

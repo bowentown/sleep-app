@@ -778,6 +778,59 @@ for (const [label, record] of cases) {
   check('仅一晚时仍能显示睡眠中点（只需一晚）', computeSleepMidpoint(one) !== null);
 }
 
+// ——首页的视觉权威分配：分数被降级，自指对照被提前。
+// 为什么单独断言层级：这个改动不改任何数值，唯一效果就是"谁更显眼"。
+// 没有断言的话，日后有人把分数环调回去，测试全绿，而问题原样复现。
+{
+  // 上面那段用过 localStorage 后把它 delete 了（见 "delete globalThis.localStorage"），
+  // 所以这里要重新垫一个——OneTapSleepTracker 初始化时会读它。
+  const store: Record<string, string> = {};
+  (globalThis as unknown as { localStorage: unknown }).localStorage = {
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => { store[k] = String(v); },
+    removeItem: (k: string) => { delete store[k]; },
+    clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+  };
+
+  const html = render('TodayTab(自指对照)', React.createElement(TodayTab, {
+    records: getInitialSleepLogs(),
+    userProfile: {
+      name: '体验用户', targetBedtime: '23:00', targetWakeTime: '07:00', targetDurationHours: 8,
+    } as unknown as UserProfile,
+    theme,
+    onOpenActiveSleep: () => {},
+    onOpenManualLog: () => {},
+    onSaveRecord: () => {},
+  }));
+  const clean = stripComments(html);
+
+  check('首页渲染出自指对照',
+    clean.includes('比你自己'),
+    '自指对照没渲染出来——这是本页唯一被实测验证有效的反馈形式');
+  check('自指对照出现在分数环之前（先给相对变化，再给绝对分数）',
+    clean.indexOf('比你自己') < clean.indexOf('tabular-nums'),
+    '顺序反了：分数又回到最前面');
+  // 曾经写成「对比你自己：比你自己最近 6 晚…」——前缀与正文重复了"你自己"。
+  // 关键词断言抓不到这种重复，所以单独钉一次。
+  check('自指对照没有重复的「你自己」',
+    (clean.match(/你自己/g) ?? []).length === 1,
+    `出现了 ${(clean.match(/你自己/g) ?? []).length} 次`);
+  check('自指对照引用的是用户自己的晚数，不是临床阈值',
+    /最近 \d+ 晚/.test(clean),
+    '没有引用自己的基线');
+
+  // 分数环必须保持降级：数字不再是 text-2xl，容器不再是 w-20 h-20
+  check('分数数字已降级（不再是 text-2xl）',
+    !clean.includes('text-2xl'),
+    '分数又变回整张卡最大的字号');
+  check('分数环容器已缩小（w-16 而非 w-20）',
+    clean.includes('w-16 h-16') && !clean.includes('w-20 h-20'),
+    '分数环尺寸被调回去了');
+  check('页脚说明评分里含推演成分',
+    clean.includes('40 分的推演分期'),
+    '只说了深睡是推演，没说分数里有多少是推演');
+}
+
 // ============ 汇总 ============
 console.log(`\n${'='.repeat(60)}`);
 if (failures.length === 0) {

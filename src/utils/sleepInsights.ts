@@ -353,3 +353,50 @@ export function describeDelta(deltaMinutes: number, toleranceMinutes = 10): stri
   if (Math.abs(rounded) <= toleranceMinutes) return '基本准时';
   return rounded < 0 ? `早 ${formatDurationChinese(-rounded)}` : `晚 ${formatDurationChinese(rounded)}`;
 }
+
+
+/**
+ * 「和你自己比」——把昨晚与你自己前几晚的平均时长作对照。
+ *
+ * 为什么要有这个函数（而不是只显示 0–100 分）：
+ * 1. 那个分数有 40 分（深睡 20 + REM 20）来自 generateSleepStages **推演**出的分期，
+ *    且深睡分在实测的绝大多数输入下恒为满分——它几乎不区分人群，主要作用是抬高总分。
+ * 2. 睡眠领域唯一一项 MRT 实测（Takeuchi 2024, JMIR, DOI 10.2196/49669）有效的形式
+ *    正是**与用户自己的基线对比的变化量**（消息原文 "You slept XX minutes longer
+ *    (shorter) than your average yesterday"），效果 +40 分钟睡眠、持续 7 天；
+ *    而该研究对本来睡眠稳定的组**完全没有效应**。
+ *
+ * 所以这里给出的是自指对照，不引入任何临床阈值，也不做"好/坏"判定。
+ *
+ * @param records 就寝记录，**新的在前**（与 App 内的存储顺序一致）
+ * @param baselineNights 用作基线的晚数，默认 6（加上昨晚共 7 晚）
+ * @returns 对照文案；可用晚数不足（<3 晚基线）时返回 null，宁可不显示也不给不可靠的数
+ */
+export function describeVsSelf(
+  records: SleepRecord[],
+  baselineNights = 6
+): { text: string; deltaMinutes: number } | null {
+  if (!Array.isArray(records) || records.length < 2) return null;
+  const latest = records[0];
+  if (!latest) return null;
+
+  const prior = records.slice(1, 1 + baselineNights).filter((r) => r.durationMinutes > 0);
+  // 基线少于 3 晚就不给结论：2 晚的"平均"几乎等于随机，与发现引擎里
+  // 「需要 ≥2 晚有、≥2 晚无」的取样纪律保持一致。
+  if (prior.length < 3) return null;
+
+  const mean = prior.reduce((sum, r) => sum + r.durationMinutes, 0) / prior.length;
+  const delta = Math.round(latest.durationMinutes - mean);
+  const nights = `最近 ${prior.length} 晚`;
+
+  if (Math.abs(delta) <= 10) {
+    return { text: `和${nights}平均水平差不多`, deltaMinutes: delta };
+  }
+  const how = delta > 0 ? '多' : '少';
+  // 用「38分」而不是 formatDurationChinese 的「38分钟」——首页一句话总结写的是
+  // 「比目标少睡 24分」，同一张卡里两种口径会让用户以为是两个不同的量。
+  return {
+    text: `比你自己${nights}平均${how}睡 ${Math.abs(delta)}分`,
+    deltaMinutes: delta,
+  };
+}

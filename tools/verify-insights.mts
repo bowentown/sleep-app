@@ -13,6 +13,7 @@
 import {
   buildTargetTimeline,
   describeDelta,
+  describeVsSelf,
   minutesSinceNoon,
   fromMinutesSinceNoon,
   getBedtimeStatus,
@@ -21,7 +22,7 @@ import {
   buildMorningSummary,
   describeWeekExtreme,
 } from '../src/utils/sleepInsights.js';
-import { buildSleepRecord } from '../src/utils/sleepRecord.js';
+import { buildSleepRecord, getInitialSleepLogs } from '../src/utils/sleepRecord.js';
 import { formatDurationChinese } from '../src/utils/sleepScore.js';
 
 let pass = 0;
@@ -385,6 +386,46 @@ section('昨夜 vs 目标时间轴');
   check('晚 20 分钟的说法正确', describeDelta(20) === '晚 20分钟', describeDelta(20));
   check('差值在容差内说「基本准时」', describeDelta(6) === '基本准时' && describeDelta(-9) === '基本准时',
     `${describeDelta(6)} / ${describeDelta(-9)}`);
+}
+
+console.log('\n══ 自指对照：和自己的基线比，而不是和临床阈值比 ══');
+{
+  const mk = (dur: number, day = 1): any => ({
+    id: 'r' + day, date: `2026-09-${String(day).padStart(2, '0')}`, bedtime: '23:00', wakeTime: '07:00',
+    durationMinutes: dur, deepSleepMinutes: 90, lightSleepMinutes: 260, remSleepMinutes: 100,
+    awakeMinutes: 20, sleepScore: 80, sleepEfficiency: 95, latencyMinutes: 15, wakeCount: 1,
+    wakingMood: 'neutral', preSleepHabits: [],
+  });
+
+  // 睡眠领域唯一一项 MRT 实测（Takeuchi 2024, JMIR, DOI 10.2196/49669）有效的形式
+  // 是「与用户自己的基线对比的变化量」，不是绝对分数。这个函数就是那个形式。
+  const up = describeVsSelf([mk(480), ...Array.from({ length: 6 }, (_, i) => mk(420, i + 2))]);
+  check('比基线长时报「多睡」', up?.text.includes('多睡') === true, up?.text);
+  check('差值用「38分」口径（与首页一句话总结一致，不是「38分钟」）',
+    /\d+分$/.test(up?.text ?? ''), up?.text);
+  check('文案里出现「你自己」，明确是自指对照', up?.text.includes('你自己') === true, up?.text);
+  // 最关键的一条：绝不能退化成"和临床阈值比"
+  check('文案不含任何绝对时长阈值（如 8小时）',
+    !/\d+小时/.test(up?.text ?? ''), `出现了绝对时长：${up?.text}`);
+
+  const down = describeVsSelf([mk(360), ...Array.from({ length: 6 }, (_, i) => mk(430, i + 2))]);
+  check('比基线短时报「少睡」', down?.text.includes('少睡') === true, down?.text);
+
+  const flat = describeVsSelf([mk(425), ...Array.from({ length: 6 }, (_, i) => mk(430, i + 2))]);
+  check('10 分钟以内差异说「差不多」，不把噪声报成变化',
+    flat?.text.includes('差不多') === true, flat?.text);
+
+  // 取样纪律：与发现引擎「需要 ≥2 晚有、≥2 晚无」同一标准
+  check('基线只有 2 晚时不给结论', describeVsSelf([mk(480), mk(420, 2), mk(420, 3)]) === null);
+  check('只有 1 晚时不给结论', describeVsSelf([mk(480)]) === null);
+  check('空数组不崩', describeVsSelf([]) === null);
+  check('基线全是 0 分钟时不给结论（不能拿 0 当基线）',
+    describeVsSelf([mk(480), ...Array.from({ length: 6 }, (_, i) => mk(0, i + 2))]) === null);
+
+  // 真实数据通路：演示数据必须能产出，否则这个功能在 App 里根本不显示
+  const onDemo = describeVsSelf(getInitialSleepLogs());
+  check('演示数据（7 晚）能产出自指对照', onDemo !== null, '真实数据通路上没产出');
+  check('对照引用了真实的晚数', onDemo?.text.includes('最近 6 晚') === true, onDemo?.text);
 }
 
 // ---------------------------------------------------------------- 汇总

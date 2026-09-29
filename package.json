@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "verify": "tsx tools/verify-invariants.mts && tsx tools/verify-render.mts && tsx tools/verify-stage-colors.mts && tsx tools/verify-insights.mts && tsx tools/verify-animation-transform.mts && tsx tools/verify-rhythm.mts",
+    "verify": "tsx tools/verify-invariants.mts && tsx tools/verify-render.mts && tsx tools/verify-stage-colors.mts && tsx tools/verify-insights.mts && tsx tools/verify-animation-transform.mts && tsx tools/verify-rhythm.mts && tsx tools/verify-ai-advice.mts",
     "verify:theme": "tsx tools/verify-theme-classes.mts",
     "verify:data": "tsx tools/verify-invariants.mts",
     "verify:render": "tsx tools/verify-render.mts",
@@ -18,7 +18,8 @@
     "check": "npm run lint && npm run verify && npm run build && npm run verify:theme",
     "verify:insights": "tsx tools/verify-insights.mts",
     "verify:animation": "tsx tools/verify-animation-transform.mts",
-    "verify:rhythm": "tsx tools/verify-rhythm.mts"
+    "verify:rhythm": "tsx tools/verify-rhythm.mts",
+    "verify:ai": "tsx tools/verify-ai-advice.mts"
   },
   "dependencies": {
     "@capacitor/local-notifications": "^8.3.1",

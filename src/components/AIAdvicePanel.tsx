@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Sparkles,
   Send,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SleepRecord, SleepAnalysisResult, ChatMessage, UserProfile } from '../types/sleep';
 import { generateLocalClinicalAnalysis, generateLocalChatReply, classifyIntent } from '../utils/clinicalSleepEngine';
+import { computeFindings, type Finding } from '../utils/sleepFindings';
 import {
   getActiveModelLabel,
   generateLocalLlmReply,
@@ -60,6 +61,15 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [localStage, setLocalStage] = useState<'loading' | 'generating' | null>(null);
   const localGenAbortRef = useRef<AbortController | null>(null);
+
+  // 「发现」在打开面板时就算好，不需要用户先点一下"生成评估"。
+  // 原先要点按钮才出现内容，等于默认状态什么都不告诉你——
+  // 而这个功能的价值恰恰在于**主动指出问题**，而不是等你问对问题。
+  const findings = useMemo(
+    () => (records.length > 0 ? computeFindings(records, userProfile) : []),
+    [records, userProfile]
+  );
+  const actFindings = findings.filter((f) => f.severity === 'act');
 
   const QUICK_PROMPTS = [
     '深睡比例偏低怎么提升？',
@@ -319,7 +329,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
       {/* 1. Concise Assessment Banner */}
       <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} flex items-center justify-between gap-3`}>
         <div className="flex-1 min-w-0">
-          <h3 className="text-xs font-bold text-white">睡眠医学评估</h3>
+          <h3 className="text-xs font-bold text-white">睡眠医学完整报告</h3>
           <p className="text-[11px] text-slate-400 mt-0.5">模型：{activeProviderName} · 评分为模型估算，非医疗诊断</p>
         </div>
 
@@ -337,11 +347,68 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
           ) : (
             <>
               <RefreshCw className="w-3 h-3" />
-              <span>{analysis ? '刷新评估' : '生成评估'}</span>
+              <span>{analysis ? '刷新完整报告' : '展开完整报告'}</span>
             </>
           )}
         </button>
       </div>
+
+      {/* 2. 待处理清单——默认就在，不用点按钮 */}
+      {actFindings.length > 0 && (
+        <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder} space-y-3`}>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <h3 className="text-xs font-bold text-white">
+              有 {actFindings.length} 项值得先处理
+            </h3>
+          </div>
+          {actFindings.slice(0, 3).map((f) => (
+            <div
+              key={f.id}
+              className={`${theme.cardInnerBg} rounded-2xl p-3 border-l-3 border-amber-400 space-y-1`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs font-bold text-white">{f.headline}</span>
+                <span className="text-[11px] font-mono text-amber-300 shrink-0 whitespace-nowrap">
+                  {f.value}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">{f.detail}</p>
+              {f.levers[0] && (
+                <p className="text-[11px] text-indigo-300 font-medium">→ {f.levers[0]}</p>
+              )}
+            </div>
+          ))}
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            这些结论来自你自己的记录，不是通用建议；改动后重新记录即可看到变化。
+          </p>
+        </div>
+      )}
+
+      {/* 3. 全部指标（含正常项）——知道哪些不用担心，和知道哪些要处理一样重要 */}
+      {findings.length > 0 && (
+        <div className={`${theme.cardBg} rounded-3xl p-4 border ${theme.cardBorder}`}>
+          <h3 className="text-xs font-bold text-white mb-3">全部指标</h3>
+          <div className="space-y-2">
+            {findings.map((f) => (
+              <div key={f.id} className="flex items-center gap-2 text-[11px]">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    f.severity === 'act'
+                      ? 'bg-amber-400'
+                      : f.severity === 'watch'
+                        ? 'bg-slate-400'
+                        : 'bg-emerald-400'
+                  }`}
+                />
+                <span className="text-slate-300 flex-1 min-w-0 truncate">{f.metric}</span>
+                <span className="font-mono text-white shrink-0">{f.value}</span>
+                <span className="text-slate-500 shrink-0 hidden sm:inline">{f.reference}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Assessment result */}
       {analysis && (

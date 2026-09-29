@@ -1,4 +1,12 @@
 import { SleepRecord, SleepAnalysisResult, UserProfile } from '../types/sleep';
+import {
+  computeFindings,
+  routeQuestion,
+  matchBoundary,
+  renderFinding,
+  ANSWER_ANCHORS,
+  type Finding,
+} from './sleepFindings';
 
 /**
  * 极光睡眠 (SomnaCare) 厚实规则与临床对话引擎 (Phase 0 深度增强版)
@@ -235,46 +243,57 @@ export function generateLocalClinicalAnalysis(
   const targetH = userProfile?.targetDurationHours || 8;
   const debt = (targetH - Number(hours)).toFixed(1);
 
+  // 报告不再自成一篇文章，而是从同一份「发现」里长出来。
+  // 原先这里硬写 1403 字散文，和卡片上的结论各说各话；
+  // 现在报告与聊天读的是同一批数据、同一套阈值，不可能互相矛盾。
+  const findings = computeFindings(recentLogs, userProfile);
+  const act = findings.filter((f) => f.severity === 'act');
+  const watch = findings.filter((f) => f.severity === 'watch');
+  const byId = (id: string) => findings.find((f) => f.id === id);
+  const brief = (id: string, fallback: string) => byId(id)?.headline ?? fallback;
+
+  const TIME_WINDOWS: Record<string, string> = {
+    deep: '夜间睡眠微气候',
+    latency: '睡前减速期 (21:30 - 22:45)',
+    duration: '就寝提前',
+    awakening: '夜间睡眠微气候',
+    regularity: '固定起床时间',
+    habit: '白天 / 睡前习惯',
+  };
+  const windowFor = (f: Finding) => {
+    const key = Object.keys(TIME_WINDOWS).find((k) => f.id.includes(k) || f.topics.includes(k));
+    return key ? TIME_WINDOWS[key] : '全天';
+  };
+
+  const recs = [...act, ...watch].slice(0, 3).map((f) => ({
+    timeWindow: windowFor(f),
+    action: f.headline,
+    detail: f.detail,
+    impact: f.levers[0] ?? '继续记录，观察该指标是否改善',
+  }));
+
   return {
     chronotype,
     chronotypeDescription: chronotypeDesc,
     overallHealthGrade: healthGrade,
-    scoreSummary: `近${count || 7}天平均睡眠${hours}小时，深睡率${deepPct}%，总体处于${healthGrade}水平。`,
+    scoreSummary:
+      act.length > 0
+        ? `近${count || 7}天有 ${act.length} 项指标需要处理：${act.map((f) => f.metric).join('、')}。`
+        : `近${count || 7}天各项指标都在正常范围。`,
     clinicalMetricsAnalysis: {
-      durationAssessment: `周期平均睡眠时长为 ${hours} 小时（目标 ${targetH} 小时），睡眠债务差额约 ${debt} 小时。总体时长${
-        Math.abs(Number(debt)) <= 0.5
-          ? '充足合理，利于神经元代谢更新与体力修复'
-          : '稍显不足，建议周末避免报复性补觉以免打乱时相'
-      }。`,
-      deepSleepAssessment: `深睡眠（慢波期N3）平均达 ${avgDeep} 分钟，占总睡眠比 ${deepPct}%（临床推荐健康值为 15%-25%）。脑脊液在此阶段高效冲洗代谢废物，对体力与免疫力恢复至关重要。`,
-      remSleepAssessment: `快速眼动期(REM)平均 ${avgRem} 分钟，占比 ${remPct}%（参考健康值为 20%-25%）。此阶段脑电活跃，主导白天情绪消磁、记忆长时存储与神经回路重塑。`,
-      efficiencyAssessment: `睡眠效率评分为 ${avgEfficiency}%（临床优良阈值 >85%），卧床实际入睡时间占比良好，夜间偶有 ${avgWake} 次微觉醒，均在良性生理范围内。`,
-      sleepLatencyAssessment: `平均入睡潜伏期为 ${avgLatency} 分钟（健康参考 10-20 分钟），反映睡前神经松弛机制运行顺畅。`,
+      durationAssessment: brief('duration_short', `平均 ${hours} 小时（目标 ${targetH} 小时）`) + '。',
+      deepSleepAssessment: brief('deep_low', `深睡占比 ${deepPct}%，在 13–23% 区间内`) + '。',
+      remSleepAssessment: `REM 平均 ${avgRem} 分钟，占比 ${remPct}%（参考 20–25%）。`,
+      efficiencyAssessment: `睡眠效率 ${avgEfficiency}%（>85% 为佳），平均夜醒 ${avgWake} 次。`,
+      sleepLatencyAssessment: brief('latency_high', `入睡潜伏期 ${avgLatency} 分钟，在正常范围内`) + '。',
     },
-    identifiedIssues: issues,
-    personalizedRecommendations: [
-      {
-        timeWindow: '白天 / 午后 (07:00 - 15:00)',
-        action: '晨间自然日光浴与午后咖啡因阻断',
-        detail:
-          '晨起30分钟内接触15-20分钟户外阳光，抑制残留褪黑素并校准视交叉上核生物钟；设定下午14:00为咖啡因硬截止时间。',
-        impact: '增强夜间自然睡眠驱动力，缩短入睡潜伏期约10分钟',
-      },
-      {
-        timeWindow: '睡前减速期 (21:30 - 22:45)',
-        action: '40℃温水沐浴与4-7-8神经降噪呼吸',
-        detail:
-          '睡前1小时温水洗澡使外周血管舒张、核心体温快速下降；在床上配合APP内4-7-8呼吸引导完成3-4轮，激活迷走神经。',
-        impact: '促进深睡眠启动，预计提升深睡占比15-20分钟',
-      },
-      {
-        timeWindow: '夜间睡眠微气候调控',
-        action: '卧室控温与白噪音掩蔽',
-        detail:
-          '保持室温在19-21℃、湿度50%-60%，遮挡所有LED光源；枕边可微量播放APP内的白噪音或自然音，掩蔽突发杂音。',
-        impact: '减少后半夜翻身微觉醒，维持深睡眠连续性',
-      },
-    ],
+    identifiedIssues: act.length > 0 ? act.map((f) => f.headline) : ['各项指标均在正常范围'],
+    personalizedRecommendations: recs.length > 0 ? recs : [{
+      timeWindow: '全天',
+      action: '保持当前作息',
+      detail: '各项指标都在正常范围内，此时最有价值的做法是不去改动它。',
+      impact: '维持现有节律',
+    }],
     mindsetAffirmation:
       '允许思绪如云朵般悄然飘过，黑夜是身体自我治愈的神圣时刻，今晚您将拥有一场深沉安稳的修复之旅。',
   };
@@ -286,11 +305,12 @@ export function generateLocalClinicalAnalysis(
 export function generateLocalChatReply(
   userText: string,
   latestRecord?: SleepRecord,
-  records: SleepRecord[] = []
+  records: SleepRecord[] = [],
+  userProfile?: UserProfile
 ): string {
   const intent = classifyIntent(userText);
 
-  // 1. 危机干预安全护栏（无条件熔断）
+  // 1. 危机干预安全护栏（无条件熔断，一字不动）
   if (intent.category === 'crisis') {
     return `❤️ **请珍重您的生命，您并不孤单！**\n\n我们非常关心您的安危与身心感受。当睡眠困难伴随极度的情绪痛苦时，请立刻寻求专业心理与危机支持：\n\n• **全国希望24小时生命求助热线**：400-161-9995\n• **北京心理危机研究与干预中心**：010-82951332 / 800-810-1117\n• **紧急求助电话**：110 / 120\n\n极光睡眠是健康科普工具，无法替代急诊与专业精神科医生。请立刻放下手机，联系身边的亲友或拨打上方免费热线，专业人员随时准备倾听并帮助您度过此刻难关！`;
   }
@@ -300,49 +320,44 @@ export function generateLocalChatReply(
     return `⚠️ **用药安全声明**：\n\n作为离线睡眠健康顾问，我无法为您提供处方药物（如安眠药、镇静催眠类处方剂）的具体用量、处方推荐或开药指引。\n\n• **医学原则**：镇静催眠类药物属于国家严格管制的处方药，个体耐受性、代谢速度差异极大，必须由具备执业资质的精神心理科或神经内科医生面诊后开具；\n• **无药干预优先**：在临床上，失眠认知行为疗法（CBT-I）是慢性失眠的一线疗法，有效率与持久度均优于短期药物依赖。\n\n如失眠已连续超过 3 周并严重影响白天工作生活，建议前往当地公立医院睡眠医学中心就诊。`;
   }
 
-  // 提取动态插值数据
-  const score = latestRecord?.sleepScore || 82;
-  const deep = latestRecord?.deepSleepMinutes || 90;
-  const durationH = latestRecord ? (latestRecord.durationMinutes / 60).toFixed(1) : '7.5';
-  const bedtime = latestRecord?.bedtime || '23:30';
-  const wakeTime = latestRecord?.wakeTime || '07:30';
-  const latency = latestRecord?.latencyMinutes || 15;
-  const wakeCount = latestRecord?.wakeCount || 1;
 
-  // 3. 意图分支详尽解答
-  switch (intent.category) {
-    case 'deep_sleep':
-      return `📊 **针对深睡眠（慢波期 N3）提升的临床建议**：\n\n结合您最近一晚的作息（深睡约 **${deep} 分钟**，入睡时间 **${bedtime}**）：\n\n1. 🛁 **核心体温下降法**：睡前 60–90 分钟进行约 40℃ 温水浴 15 分钟。热水使体表微血管扩张散热，在进入被窝时身体核心体温迅速下降 0.5–1℃，这是大脑松果体启动慢波深睡的生理触发开关；\n2. ☀️ **早晨户外日光锚定**：晨起 30 分钟内接触 15 分钟自然光，重置视交叉上核生物钟，能让当晚深睡波峰更集中在前两个 90 分钟周期；\n3. 🍷 **睡前严控酒精与重油**：酒精虽能缩短入睡时间，但会严重抑制慢波深睡并打碎后半夜睡眠。今晚可在极光睡眠中开启【助眠音景】的白噪音掩蔽，让深睡更连续。`;
+  // 3. 能力边界：这类问题**主动说不答**。
+  //    硬塞一条不相关的发现给一个问用药的人，比承认答不了更糟——
+  //    会让他以为自己在接受用药建议。
+  const boundary = matchBoundary(userText);
+  const all = records.length > 0 || latestRecord ? computeFindings(
+    records.length > 0 ? records : (latestRecord ? [latestRecord] : []),
+    userProfile,
+    { includeOnDemand: true }
+  ) : [];
 
-    case 'sleep_latency':
-      return `🌙 **应对入睡困难 · CBT-I“20分钟刺激控制法”**：\n\n您上一条记录的入睡潜伏期约为 **${latency} 分钟**。\n\n1. **打破“床 = 焦虑”的条件反射**：若躺下超过 20 分钟仍然毫无睡意，不要在床上翻来覆去强迫自己入睡！越用力想睡，脑内去甲肾上腺素水平越高；\n2. **离开床铺重置**：起身坐在昏暗柔和的灯光下（避免看手机屏幕），翻阅枯燥的书籍或听极光睡眠的 528Hz 修复颂磬，等到眼皮沉重、哈欠连天时再回到床上；\n3. **认知解耦**：告诉自己“闭目静躺本身就能让肌肉与神经获得 60% 以上的体能修复”，无需为今晚是否立刻睡着而自责。`;
-
-    case 'night_awakening':
-      return `⏰ **针对夜间易醒（夜醒 ${wakeCount} 次）的应对指南**：\n\n半夜惊醒或翻身醒来是很多人常见的困扰：\n\n1. **千万不要看时间**：看闹钟屏幕会立刻触发认知算力（“天哪才 3 点”、“我只剩 3 小时能睡了”），瞬间拉高皮质醇心率。把手机倒扣在远离床头的位置；\n2. **腹式呼吸激活迷走神经**：夜间醒来身体微冷，平躺后把双手放在腹部，吸气 4 秒让腹部鼓起，屏息 2 秒，缓慢呼气 6 秒，连续 6–8 轮；\n3. **排查环境温度**：后半夜人体核心体温降至谷底，若卧室过冷或过热会导致翻身微觉醒。建议卧室温度保持在 19–21℃。`;
-
-    case 'early_awakening':
-      return `🌅 **针对清晨过早醒来（凌晨 3–5 点）的调理策略**：\n\n早醒通常与深睡周期提前结束、皮质醇提前过早飙升有关：\n\n1. **卧床时间是否过长**：如果晚上 22:00 入睡，早上 4:30 醒来已经睡足 6.5 小时，这是睡眠压力自然释放的结果。可尝试将就寝时间推迟 30–45 分钟（至 22:45–23:00），以压实睡眠密度；\n2. **卧室严格遮光**：清晨微弱的晨光透过窗帘缝隙就会被视网膜感知，抑制褪黑素。换用全遮光窗帘或佩戴丝绸眼罩；\n3. **早醒后勿赖床补觉**：醒来若无法再次入睡，建议在固定时间起床拉开窗帘接受光照，把睡眠动力储蓄留给今晚。`;
-
-    case 'caffeine_lifestyle':
-      return `☕ **生活习惯与腺苷代谢机制解析**：\n\n您在最近的生活标签中记录了日常起居习惯：\n\n1. **咖啡因半衰期规律**：咖啡因在健康人体内的半衰期约为 5–7 小时，清除 75% 需耗时近 10 小时。下午 14:00 后摄入咖啡、浓茶或奶茶，即使晚上能睡着，脑电波里的慢波振幅也会显著衰减；\n2. **晚间剧烈运动时间窗口**：运动会使核心体温与内啡肽升高持续 2–3 小时，因此高强度心肺锻炼请安排在睡前 3 小时以前完成；\n3. **睡前 2 小时禁夜宵饱食**：胃肠剧烈蠕动会引起夜间胃食管反流和交感神经过载，导致深睡比例断崖式下跌。`;
-
-    case 'dreams_anxiety':
-      return `💭 **关于梦境与睡前思绪杂乱的心理疏导**：\n\n多梦并非睡眠质量差的标志！快速眼动期（REM）每晚都会周期性出现 4–5 次，做梦是大脑在整理记忆碎片与情绪消磁：\n\n1. **睡前“担忧便签本”**：睡前半小时拿纸笔写下明天待办事项与心中忧虑，写完合上本子，心理学上称为“认知卸载”，告诉大脑今晚任务已存盘；\n2. **舒缓声音辅助放松**：稳定的自然音或粉红噪音可掩蔽夜间突发杂音、降低听觉警觉；配合缓慢呼吸（如 4-7-8 呼吸法）更有助于降低生理唤醒水平。注意：助眠音频本身并不改变脑电节律，请勿期待"脑波引导"类效果；\n3. **噩梦惊醒时的接地法**：深吸一口气，用双手摸摸被褥的触感，确认自己身处安全的卧室，梦境已完全消散。`;
-
-    case 'circadian_shift':
-      return `🧭 **熬夜 / 作息紊乱后的生物钟校准方案**：\n\n人体视交叉上核生物钟的主控发条是“光照”与“进食时段”：\n\n1. **严禁次日白天报复性补觉**：补觉超过 1 小时会彻底打散当晚的睡眠压力（Sleep Drive），导致今夜再次失眠，恶性循环。次日请按原定时间起床；\n2. **早晨吃一份富含蛋白质的早餐**：进食信号会重置肝脏与外周器官的时钟基因；\n3. **午间微小憩**：若白天极度困倦，仅可在下午 13:00–13:30 闭目小憩 20 分钟，并定好闹钟，避免进入深睡阶段醒来昏沉。`;
-
-    case 'nap_recovery':
-      return `⚡ **科学高效的午间动力小憩（Power Nap）**：\n\n1. **黄金时长 15–20 分钟**：严格控制在 20 分钟内，此时大脑仅处于浅睡眠（N1/N2），醒来神清气爽；若超过 30 分钟掉入慢波深睡（N3），醒来会产生长达 1 小时的“睡眠惯性（昏沉头痛）”；\n2. **咖啡小憩法（Coffee Nap）**：小憩前喝一小杯黑咖啡立刻闭目休息，20 分钟后咖啡因起效 + 腺苷暂时清除，精力恢复效果倍增；\n3. **截止时间**：午睡严禁晚于下午 15:30，以免截断当晚就寝前的入眠驱动力。`;
-
-    case 'detection_principles':
-      return `🔍 **极光睡眠的睡眠分期原理（模型推演，非传感器实测）**：
-
-1. **90分钟超昼夜节律模型**：人的睡眠由 4–6 个约 90 分钟的周期串联（入睡 → 浅睡 → 深睡 → REM）。本应用根据您记录的真实就寝/起床时间，按该节律推演各期分布与占比；
-2. **诚实边界**：App 未读取体动/脑波传感器，各期时长与占比为科学模型估算值，仅供作息参考，不能替代多导睡眠监测（PSG）等临床检测；
-3. **100% 本地运算与隐私安全**：所有数据均在您的设备内推导存储，无需联网上传服务器。`;
-
-    default:
-      return `收到您的问题：“${userText}”！\n\n结合您最近在极光睡眠的记录（当前作息为 **${bedtime} 入睡、${wakeTime} 醒来**，总时长约 **${durationH} 小时**，深睡约 **${deep} 分钟**，评分 **${score} 分**）：\n\n• 您的昼夜生物钟正在根据您的日常规律持续自适应校准；\n• 您随时可以在首页通过【今晚准备入睡】或【记录昨夜睡眠】记录最新起居，并在【偏好】中设置目标作息；\n• 如有其他具体感受（如入睡困难、半夜容易醒、午后犯困等），请直接告诉我，我将为您输出针对性的生理调理方案！`;
+  if (boundary) {
+    const urgent = all.find((f) => f.severity === 'act');
+    const tail = urgent
+      ? `\n\n---\n\n另外，你的记录里有一件事更要紧：**${urgent.headline}**。${urgent.detail}`
+      : '';
+    return boundary.reply + tail;
   }
+
+  // 4. 把发现渲染成回答。提问只用来**选**哪条发现，不负责生成内容。
+  const routed = routeQuestion(userText, all);
+
+  if (routed.covered && routed.matched.length > 0) {
+    // 先给有出处的常识锚点，再叠个人数据——只给个人数据没有参照系
+    const anchorKey = Object.keys(ANSWER_ANCHORS).find((k) =>
+      routed.matched.some((f) => f.topics.includes(k))
+    );
+    const anchor = anchorKey ? `${ANSWER_ANCHORS[anchorKey]}\n\n` : '';
+    return anchor + routed.matched.slice(0, 2).map((f) => renderFinding(f)).join('\n\n---\n\n');
+  }
+
+  // 5. 答不了就直说答不了，但**不能空手**——附上他当前最该关心的那条。
+  //    旧实现在这里复述问题 + 让用户换个说法，实测 75% 的提问都掉进这里。
+  const top = routed.fallback ?? all[0];
+  const head =
+    `这个问题不在我能判断的范围内——我的能力是睡眠记录与作息指标，不是通用医学问答。` +
+    `与其给你一个看似合理的猜测，不如直说。`;
+  return top
+    ? `${head}\n\n不过你的记录里有一件事更值得先看：\n\n${renderFinding(top)}`
+    : head;
 }

@@ -86,6 +86,24 @@ export interface SleepStats {
 
 const MIN_NIGHTS_FOR_TREND = 3;
 
+/**
+ * 「可以夸深睡」所需的平均时长下限（分钟）。低于这个值就**不产 deep_good**。
+ *
+ * 为什么需要这个门槛：深睡占比不是实测，而是 generateSleepStages 由**作息推演**出来的，
+ * 它与睡眠时长的相关系数是 **r = −0.769**——睡得越少，这个百分比越高。
+ * 实测（固定 23:00 就寝、15 分钟入睡、1 次夜醒，只改起床时间，各 7 晚）：
+ *
+ *     睡 4.0h → 深睡 27%      睡 7.0h → 21%      睡 10.0h → 18%
+ *     睡 6.0h → 深睡 23%      睡 8.0h → 21%      睡 12.0h → 18%
+ *
+ * 在加这个门槛之前，**上表每一档都判 deep_good**，也就是会告诉一个只睡 4 小时的人
+ * 「你的深睡已经高于目标区间，不需要再想办法提升深睡」。
+ * 那不是安慰，是**由一个反向指标推出的有害建议**。
+ *
+ * 时长不足时该说的是时长，不是深睡——时长由用户实际记录，是真数据。
+ */
+const DURATION_OK_FOR_DEEP_PRAISE_MIN = 420; // 7 小时
+
 /** 就寝时间换算到「以正午为界」的连续轴，避免 23:50 与 00:10 被算成相差 23 小时 */
 export function bedtimeToAxis(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -377,7 +395,9 @@ export function computeTrendFinding(records: SleepRecord[], profile?: UserProfil
       metric: '深睡 vs 你自己的基线',
       value: `${r1}% ≈ ${r0}%`,
       reference: `你自己前 ${earlier.length} 晚`,
-      headline: `深睡稳定在你自己的水平（${r0}% 左右）`,
+      headline: `作息推演的深睡稳定在 ${r0}% 左右`,
+      // 标题必须自曝来源：provenance 只管默认清单过滤与脚注，
+      // 而用户读到的第一句是标题（详见「来源标注必须出现在标题里」的教训）。
       detail:
         `最近 7 晚深睡占比 ${r1}%，你之前 ${earlier.length} 晚是 ${r0}%，基本持平。` +
         `**稳定本身就是结论**：说明这个水平是你当前的常态，不是最近出了什么状况——` +
@@ -395,9 +415,11 @@ export function computeTrendFinding(records: SleepRecord[], profile?: UserProfil
     metric: '深睡 vs 你自己的基线',
     value: `${r0}% → ${r1}%`,
     reference: `你自己前 ${earlier.length} 晚`,
+    // 标题也带来源标记：provenance 字段只管住了默认清单过滤与脚注，
+    // 用户读到的第一句仍然是标题。这一项是推演的，标题就不能写成实测的口吻。
     headline: falling
-      ? `深睡从你自己的基线 ${r0}% 掉到了 ${r1}%`
-      : `深睡比你自己的基线（${r0}%）回升到 ${r1}%`,
+      ? `作息推演的深睡从你的基线 ${r0}% 掉到了 ${r1}%`
+      : `作息推演的深睡从你的基线 ${r0}% 回到 ${r1}%`,
     detail:
       `最近 7 晚 ${r1}%，你之前 ${earlier.length} 晚 ${r0}%，变化 ${delta > 0 ? '+' : ''}${delta.toFixed(1)} 个百分点` +
       `（同期睡眠时长${dur >= 0 ? '增加' : '减少'}了 ${Math.abs(Math.round(dur))} 分钟）。` +
@@ -450,9 +472,11 @@ export function computeFindings(
         severity: 'act',
         metric: '深睡占比',
         value: `${s.deepPct}%`,
-        reference: 'TST 目标 13–23%',
-        headline: `深睡占比 ${s.deepPct}%，低于临床目标`,
+        reference: '临床分期 13–23%，推演值不可比',
+        headline: `作息推演的深睡占比 ${s.deepPct}%`,
         detail:
+          '这个百分比是模型按你的就寝与起床时间推算的，不是分期实测，' +
+          '所以它偏低通常只说明**这套作息算出来的周期结构不理想**，不等于你的真实深睡偏少。' +
           `${cause ?? '在排除掉就寝过晚、时长不足、饮酒这几个常见因素后，剩下的通常与睡前体温、光照和压力有关。'}` +
           caveat,
         levers: cause
@@ -471,22 +495,26 @@ export function computeFindings(
         severity: 'watch',
         metric: '深睡占比',
         value: `${s.deepPct}%`,
-        reference: 'TST 目标 13–23%',
-        headline: `深睡占比 ${s.deepPct}%，在临床区间内但偏下限`,
-        detail: `已经达标，不需要为它焦虑。若想让波峰更集中，优先把就寝时间固定下来——规律比任何助眠技巧都更能稳住深睡。${caveat}`,
+        reference: '临床分期 13–23%，推演值不可比',
+        headline: `作息推演的深睡占比 ${s.deepPct}%`,
+        detail: `这个数字落在模型区间里，但对推演值本身不必追求"更达标"。` +
+          `值得做的是把就寝时间固定下来——规律性能稳定的是**总时长与入睡时刻**，` +
+          `这两项是实测的；至于深睡占比会跟着变，那是模型重算了输入，不是你身体的深睡变了。${caveat}`,
         levers: ['把就寝时间的中位数固定在同一时刻，波动控制在 30 分钟内'],
         topics: ['deep_sleep', 'deep'],
       });
-    } else {
+    } else if (s.avgDurationMin >= DURATION_OK_FOR_DEEP_PRAISE_MIN) {
       out.push({
         id: 'deep_good',
         provenance: 'modeled',
         severity: 'good',
         metric: '深睡占比',
         value: `${s.deepPct}%`,
-        reference: 'TST 目标 13–23%',
-        headline: `深睡占比 ${s.deepPct}%，高于临床目标`,
-        detail: `你的深睡已经高于目标区间，不需要再想办法"提升深睡"——市面上大多数号称提升深睡的方法，对你这个水平都不会有可测量的效果。把注意力放在时长和规律性上收益更大。${caveat}`,
+        reference: '临床分期 13–23%，推演值不可比',
+        headline: `作息推演的深睡占比 ${s.deepPct}%`,
+        detail: `模型按你现在的作息算出了这个百分比，它主要反映的是**你睡够了多久**，不是你的深睡质量。` +
+          `这个 App 测不到深睡，所以不要拿它去和"提升深睡"的方法比较效果——那需要一个能真正测分期的设备。` +
+          `你可以控制的是时长与规律性，这两项本身就是实测的。${caveat}`,
         levers: [],
         topics: ['deep_sleep', 'deep'],
       });

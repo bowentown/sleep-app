@@ -40,7 +40,7 @@ import {
   routeQuestion,
   matchBoundary,
 } from '../src/utils/sleepFindings.js';
-import { getInitialSleepLogs } from '../src/utils/sleepRecord.js';
+import { getInitialSleepLogs, buildSleepRecord } from '../src/utils/sleepRecord.js';
 import type { SleepRecord } from '../src/types/sleep.js';
 import type { UserProfile } from '../src/types/sleep.js';
 
@@ -133,7 +133,24 @@ console.log('\n══ 2. 核心不变式：回答必须依赖数据 ══');
     stripDigits(a) !== stripDigits(b),
     '抹掉数字后两段回答相同 → 仍是固定稿'
   );
-  check('健康数据下不劝人"提升深睡"', a.includes('高于') || a.includes('不需要'), a.slice(0, 80));
+  // ★ 这条断言原来写的是 `a.includes('高于') || a.includes('不需要')`，
+  // 也就是**要求回答里必须出现"高于目标"或"不需要"**——它把"对推演值下临床判定"
+  // 这件事固化成了验收标准。我改掉 deep_good 的措辞后它变红，才暴露出这一点。
+  //
+  // 断言可以编码缺陷。正确要测的性质不是"有没有说高于"，而是
+  // **有没有劝人去提升一个测不到的指标**，以及**有没有把注意力引向可控项**。
+  check('不劝人提升深睡，而是引向可控项（时长与规律性）',
+    /时长与规律性|时长与规律/.test(a),
+    a.slice(0, 120));
+  check('如实说明深睡测不到',
+    /测不到深睡|无法被真正测量|非实测/.test(a),
+    a.slice(0, 120));
+  check('不再对推演值声称"高于目标/已经达标"',
+    !/高于目标|高于临床|已经达标|低于临床/.test(a),
+    '又出现了对推演值的临床判定');
+  check('不再把"提升深睡"当成可执行建议',
+    !/(建议|应该|可以尝试|试试)[^。]{0,20}提升深睡/.test(a),
+    '又劝人去提升一个测不到的指标');
   check(
     '紊乱数据下指出就寝过晚是主因',
     b.includes('02:40'),
@@ -518,6 +535,103 @@ console.log('\n══ 6e. 数据来源：推演值不得冒充测量值 ══')
     answer.includes('推演值'),
     answer.slice(0, 100)
   );
+}
+
+console.log('\n══ 6g. 标题必须自曝来源（结构性，不是逐条查字符串）══');
+{
+  // 起因：上一轮给发现加了 provenance 字段，但它只覆盖了"默认清单过滤"与"渲染时的脚注"，
+  // **标题——用户读到的第一句——照样在打临床招牌**：
+  //   「深睡占比 27%，低于临床目标」
+  // 而深睡占比是 generateSleepStages 由作息推演的，与睡眠时长 r = −0.769。
+  //
+  // 所以这条不逐条查字符串，而是**遍历所有 modeled 发现**，要求它们的 headline
+  // 自带来源标记。将来任何人新增一条 modeled 发现却忘了标注，这里就会红。
+  const MARKER = /推演|估算|模型/;
+  // 本地重建"深睡骤降"数据集：recent/earlier 是 6e、6f 的块级变量，这里取不到。
+  const earlierD = Array.from({ length: 14 }, (_, i) =>
+    rec({ id: 'e' + i, date: `2026-09-${String(i + 1).padStart(2, '0')}`, deepSleepMinutes: 95 }));
+  const recentD = Array.from({ length: 7 }, (_, i) =>
+    rec({ id: 'r' + i, date: `2026-09-${String(i + 15).padStart(2, '0')}`, deepSleepMinutes: 25 }));
+  const datasets: Array<[string, any[]]> = [
+    ['演示', DEMO],
+    ['紊乱', DISORDERED],
+    ['就寝不规律', ['21:00', '22:10', '23:00', '23:50', '00:40', '01:30', '03:00'].map((b, i) =>
+      rec({ id: 'i' + i, date: `2026-09-${String(i + 1).padStart(2, '0')}`, bedtime: b }))],
+    ['深睡骤降', [...recentD, ...earlierD]],
+  ];
+
+  let modeledSeen = 0;
+  const offenders: string[] = [];
+  for (const [label, data] of datasets) {
+    for (const f of computeFindings(data, profile, { includeOnDemand: true }) as any[]) {
+      if (f.provenance !== 'modeled') continue;
+      modeledSeen++;
+      if (!MARKER.test(f.headline)) offenders.push(`${label}/${f.id}: ${f.headline}`);
+    }
+  }
+  check('所有推演值的标题都自带来源标记',
+    offenders.length === 0,
+    offenders.slice(0, 3).join(' | '));
+  check('确实检查到了推演值（不是空跑）', modeledSeen >= 3, `只检查到 ${modeledSeen} 条`);
+
+  // 反向：实测值的标题**不应该**被误标成推演
+  const measured = (computeFindings(DEMO, profile, { includeOnDemand: true }) as any[])
+    .filter((f) => f.provenance === 'measured');
+  check('实测值没有被误标成推演',
+    measured.length > 0 && !measured.some((f) => MARKER.test(f.headline)),
+    `${measured.filter((f) => MARKER.test(f.headline)).map((f) => f.id).join(',')}`);
+
+  // ★ 模型不能去夸一个只睡 4 小时的人深睡好。
+  // 固定 23:00 就寝、15 分钟入睡、1 次夜醒，只改起床时间，各 7 晚。
+  // 实测：睡 4.0h → 深睡 27%、睡 12.0h → 18%（与时长 r = −0.769）。
+  // 加时长门槛之前，**每一档都产 deep_good**，等于告诉只睡 4 小时的人
+  // 「你的深睡已高于目标区间，不需要再提升」——由反向指标推出的有害建议。
+  // ★ 必须用 buildSleepRecord 造记录，不能用上面的 rec()：
+  // rec() 里 durationMinutes: 456 是**写死的**，只改 wakeTime 不影响它，
+  // 于是所有档位都落在 8 小时，"短睡档位"永远是 0 个——断言会在空跑的情况下全绿。
+  // 这是"断言必须跑在真实数据通路上"的又一次实例（第一轮就是这么漏掉深睡问题的）。
+  const deepJudgments: Array<[number, string | null]> = [];
+  for (const wake of ['03:20', '05:20', '06:20', '07:20', '09:20', '11:20']) {
+    const recs = Array.from({ length: 7 }, (_, i) =>
+      buildSleepRecord({
+        id: 'w' + i,
+        date: `2026-09-${String(22 - i).padStart(2, '0')}`,
+        bedtime: '23:00',
+        wakeTime: wake,
+        latencyMinutes: 15,
+        wakeCount: 1,
+        wakingMood: 'neutral',
+        preSleepHabits: [],
+        targetDurationMinutes: 480,
+      }) as unknown as SleepRecord);
+    const f = (computeFindings(recs, profile, { includeOnDemand: true }) as any[])
+      .find((x) => x.id === 'deep_good');
+    deepJudgments.push([Math.round(recs[0]!.durationMinutes / 60), f ? f.headline : null]);
+  }
+  const shortNights = deepJudgments.filter(([h]) => h < 7);
+  check('睡不足 7 小时时不产出"深睡好"的结论',
+    shortNights.every(([, head]) => head === null),
+    shortNights.filter(([, head]) => head !== null).map(([h, x]) => `${h}h: ${x}`).join(' | '));
+  check('时长门槛确实被生效检查到（不是空跑）',
+    shortNights.length >= 2, `只检查到 ${shortNights.length} 个短睡档位`);
+  check('睡够 7 小时以上仍能给出深睡结论（门槛没有一刀切掉功能）',
+    deepJudgments.some(([, head]) => head !== null),
+    deepJudgments.map(([h, x]) => `${h}h:${x ? '有' : '无'}`).join(' '));
+
+  // 深睡结论不得再对推演值下"临床目标"判定
+  const allDeep = datasets.flatMap(([, data]) =>
+    computeFindings(data, profile, { includeOnDemand: true }) as any[])
+    .filter((f) => /^deep_|^baseline_/.test(f.id));
+  check('深睡类结论不再声称达标/低于临床目标',
+    !allDeep.some((f) => /临床目标|临床区间|已经达标|高于目标区间/.test(f.headline + (f.detail ?? ''))),
+    allDeep.filter((f) => /临床目标|临床区间|已经达标|高于目标区间/.test(f.headline + (f.detail ?? '')))
+      .map((f) => f.id).join(','));
+  // reference 那一栏会直接展示给用户，不能把临床分期区间挂在推演值旁边而不加限定
+  check('深睡类结论的参照栏说明了推演值不可比',
+    allDeep.filter((f) => /临床分期/.test(f.reference ?? ''))
+      .every((f) => /不可比|非实测/.test(f.reference ?? '')),
+    allDeep.filter((f) => /临床分期/.test(f.reference ?? '') && !/不可比|非实测/.test(f.reference ?? ''))
+      .map((f) => f.id).join(','));
 }
 
 console.log('\n══ 6f. 提示风险必须同时给出出路 ══');

@@ -331,7 +331,11 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                 {regularity.stdDevMinutes < 30
                   ? '作息很稳定，继续保持'
                   : regularity.stdDevMinutes < 60
-                    ? '波动略大，固定就寝时间能明显改善深睡'
+                    // 原文是「固定就寝时间能明显改善深睡」——**循环论证**：
+                    // 深睡占比是 generateSleepStages 用就寝/起床时间推演出来的（r = −0.769 vs 时长），
+                    // 把就寝时间固定下来，模型重算出的深睡自然"变好"，
+                    // 但那是输入变了，不是用户的深睡变了。App 也测不到深睡。
+                    ? '波动略大，固定就寝时间本身就能让入睡时刻更稳'
                     : '波动很大，尽量先把就寝时间固定下来'}
               </p>
             </>

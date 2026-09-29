@@ -29,7 +29,7 @@
  *
  * 运行：npm run verify:wiring
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync as readFileRaw, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 let pass = 0;
@@ -61,14 +61,30 @@ function walk(dir: string, out: string[] = [], ext: RegExp = /\.(tsx|ts)$/): str
 }
 
 /** 剥注释——这个项目在「源码搜索匹配到自己的注释」上栽过三次，见 verify-copy。 */
-const stripComments = (src: string) =>
-  src
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((l) => !l.trim().startsWith('//'))
-    .join('\n');
+// 剥注释。注意**不能只剥整行的 `//`**——
+// 原实现用 `filter((l) => !l.trim().startsWith('//'))`，于是
+// `const x = 1; // 同步心肺静息节律` 这种**行尾注释剥不掉**，
+// 下一次「检查匹配到自己的注释」就等在那里。这里连行尾一起剥，
+// 只放过 `://`（URL 里的双斜杠）。
+const stripComments = (src: string): string =>
+  src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/gm, '$1');
+check('自检：整行注释被剥掉', stripComments('// 同步心肺\nconst a = 1;') === '\nconst a = 1;');
+check('自检：行尾注释也被剥掉（旧实现漏掉这一类）',
+  stripComments('const a = 1; // 同步心肺').trim() === 'const a = 1;',
+  JSON.stringify(stripComments('const a = 1; // 同步心肺')));
+check('自检：URL 里的 :// 不会被当成注释',
+  stripComments("const u = 'https://example.com/x';").includes('https://example.com/x'));
 
 const relOf = (f: string) => f.replace(/\\/g, '/');
+
+// ★★★ 「检查匹配到自己的注释」到这一轮已经是**第七次**了，
+// 每次的都是「读源码做正则匹配时忘了剥注释」。
+// 光靠「记得剥」这条约定明显不管用——所以这次改**读取本身**：
+//   • `readFileSync(f)` → **默认剥掉注释**
+//   • `rawText(f)`      → 原文，只在真的要查注释内容时用（例如「有没有写清理由」）
+// 于是忘记剥注释这件事在结构上不再可能发生，而不是靠自觉。
+const readFileSync = (f: string, _enc?: string) => stripComments(readFileRaw(f, 'utf8'));
+const rawText = (f: string) => readFileRaw(f, 'utf8');
 
 // ---------------------------------------------------------------- 取字段
 /**
@@ -97,7 +113,7 @@ const wiring: Wiring[] = fields.map(({ iface, field }) => {
   const writeRe = new RegExp(`\\b${field}\\s*:`, 'g');
   let reads = 0, compReads = 0, writes = 0;
   for (const file of files) {
-    const src = stripComments(readFileSync(file, 'utf8'));
+    const src = readFileSync(file, 'utf8');
     const hits = [...src.matchAll(wordRe)].length;
     if (hits === 0) continue;
     const w = [...src.matchAll(writeRe)].length;
@@ -174,7 +190,7 @@ check('没有「从未被读取」的配置字段', dead.length === 0,
 // 上一版这里读的是原始文件，于是正则匹配到了我在同文件里写的**解释性注释**
 // （「这个徽标原来只写『浅睡唤醒 ±20m』…」），把真正的徽标删掉它也不会红。
 // 反向验证就是靠这一点暴露的：三个反向测试全部静默通过。
-const disclosureText = (file: string) => stripComments(readFileSync(file, 'utf8'));
+const disclosureText = (file: string) => readFileSync(file, 'utf8');
 const isDisclosed = (field: string) =>
   DISCLOSED_NOT_IMPLEMENTED.some(
     (d) => d.field === field && d.disclosure.test(disclosureText(d.file))
@@ -271,7 +287,7 @@ check('引用搜索排除了本文件（否则登记表会把自己要查的孤�
   // 但豁免必须是**块级**而不是文件级：只放过 `DEMO_SPEC` 这一段，
   // 同一文件里别处再写死照样要报。并且配一条反向自检（见下）。
   const DEMO_BLOCK = /const DEMO_SPEC[\s\S]*?\n\];/;
-  const sleepRecordRaw = readFileSync('src/utils/sleepRecord.ts', 'utf8');
+  const sleepRecordRaw = readFileSync('src/utils/sleepRecord.ts');
   const demoHit = DEMO_BLOCK.exec(sleepRecordRaw);
   check('示例数据的豁免仍然必要（否则该撤销豁免）',
     !!demoHit && FAKE.test(demoHit[0]),
@@ -279,7 +295,7 @@ check('引用搜索排除了本文件（否则登记表会把自己要查的孤�
 
   const offenders: string[] = [];
   for (const f of files) {
-    let src = stripComments(readFileSync(f, 'utf8'));
+    let src = readFileSync(f, 'utf8');
     if (relOf(f) === 'src/utils/sleepRecord.ts') src = src.replace(DEMO_BLOCK, '/* 示例数据已豁免 */');
     if (FAKE.test(src)) offenders.push(relOf(f));
   }
@@ -289,7 +305,7 @@ check('引用搜索排除了本文件（否则登记表会把自己要查的孤�
 
   // 两个记录入口必须共用同一份选项，否则会再次分叉
   for (const f of ['src/components/ActiveSleepModal.tsx', 'src/components/ManualLogModal.tsx']) {
-    const src = stripComments(readFileSync(f, 'utf8'));
+    const src = readFileSync(f, 'utf8');
     check(`${relOf(f)} 的习惯选项来自共享模块（不再各存一份）`,
       /from '\.\.\/utils\/preSleepHabits'/.test(src), '没有从 utils/preSleepHabits 导入');
     check(`${relOf(f)} 默认不预勾选任何习惯`,
@@ -297,7 +313,7 @@ check('引用搜索排除了本文件（否则登记表会把自己要查的孤�
   }
 
   // 没有入口才是这个缺陷的根
-  const active = stripComments(readFileSync('src/components/ActiveSleepModal.tsx', 'utf8'));
+  const active = readFileSync('src/components/ActiveSleepModal.tsx', 'utf8');
   check('主动睡眠会话提供了习惯选择入口',
     /HABIT_OPTIONS\.map/.test(active), '没有渲染 HABIT_OPTIONS');
   check('主动睡眠会话用上了 setSelectedHabits（否则状态永远改不了）',
@@ -311,17 +327,18 @@ check('引用搜索排除了本文件（否则登记表会把自己要查的孤�
   // 但两个录入弹窗都预选 'refreshed'——**引擎里的缓解措施被界面绕过了**。
   // 反向自检：这条豁免/约束必须仍然有意义（只要还有人写 'refreshed' 当默认就报错）。
   const moodOffenders = files
-    .filter((f) => /useState<WakingMood>\('refreshed'\)/.test(stripComments(readFileSync(f, 'utf8'))))
+    .filter((f) => /useState<WakingMood>\('refreshed'\)/.test(readFileSync(f, 'utf8')))
     .map(relOf);
   check('没有弹窗把「醒来感受」默认成 refreshed（那是替用户说"精力充沛"）',
     moodOffenders.length === 0, moodOffenders.join('、'));
 
   const neutralUsers = files.filter((f) =>
-    /useState<WakingMood>\('neutral'\)/.test(stripComments(readFileSync(f, 'utf8'))));
+    /useState<WakingMood>\('neutral'\)/.test(readFileSync(f, 'utf8')));
   check('感受选择器默认落在引擎认可的「没说」值上',
     neutralUsers.length >= 2, `只有 ${neutralUsers.length} 处`);
 
-  const shared = readFileSync('src/utils/preSleepHabits.ts', 'utf8');
+  // 这里查的是**注释里有没有写清理由**，必须读原文
+  const shared = rawText('src/utils/preSleepHabits.ts');
   check('共享模块写明了默认不预勾选的原因（否则以后会被"顺手"加回默认值）',
     /预勾选/.test(shared), '缺少说明');
 }
@@ -347,11 +364,11 @@ check('引用搜索排除了本文件（否则登记表会把自己要查的孤�
     co.noUnusedParameters === true, String(co.noUnusedParameters));
 }
 
-const refSources = refFiles.map((f) => stripComments(readFileSync(f, 'utf8')));
+const refSources = refFiles.map((f) => readFileSync(f, 'utf8'));
 
 const exportNames = new Map<string, { file: string; dup: boolean }>();
 for (const file of files) {
-  const src = stripComments(readFileSync(file, 'utf8'));
+  const src = readFileSync(file, 'utf8');
   const re = /export\s+(?:async\s+)?(?:function|const|class|interface|type|enum)\s+(\w+)/g;
   for (const m of src.matchAll(re)) {
     const prev = exportNames.get(m[1]);
@@ -361,9 +378,12 @@ for (const file of files) {
 }
 
 /** 已知「建好了但还到不了」的符号。每条都要写清去向，它同时也是给用户的待办清单。 */
+// 待办清单，**不是永久豁免**：每条都配了反向检查（「已经被引用了就删掉这条」）。
+// 第十轮之前这里有 3 条，现在只剩 1 条：
+//   `SoundscapePlayer` → 已接进「睡眠」页工具入口的「助眠音轨」
+//   `PWAExportModal`   → 已接进偏好页「数据备份」卡的「安装到手机 / 分享给朋友」
+// 两条都是**护栏主动提醒**我删掉的——豁免自过期这条设计在这里第一次真正兑现。
 const ORPHAN_KNOWN: Array<{ name: string; why: string }> = [
-  { name: 'SoundscapePlayer', why: '声景播放器组件已完整，但没有入口——待产品决定' },
-  { name: 'PWAExportModal', why: 'PWA 导出弹窗已完整，但没有入口——待产品决定' },
   { name: 'moonLitPath', why: '月相相关的绘图辅助函数，未被使用——可能是重构遗留，待确认后删除' },
 ];
 
@@ -390,6 +410,66 @@ for (const k of ORPHAN_KNOWN) {
 }
 
 check('确实检查到了导出符号（不是空跑）', exportNames.size >= 50, `只收集到 ${exportNames.size} 个`);
+{
+  // 这是**结构性修法**的自检：读源码默认剥注释，原文读取必须显式 `rawText`。
+  // 有了它，「忘记剥注释」这件事在结构上不再可能发生。
+  const self = rawText('tools/verify-wiring.mts');
+  check('读源码默认剥注释（第七次「检查匹配到自己的注释」之后的结构性修法）',
+    /const readFileSync = \(f: string[^)]*\) => stripComments\(/.test(self),
+    '包装没了，忘记剥注释的老毛病会回来');
+  check('自检：默认读取确实剥掉了注释（用真实文件验证）',
+    !/同步心肺/.test(readFileSync('src/components/SoundscapePlayer.tsx')) &&
+      /同步心肺/.test(rawText('src/components/SoundscapePlayer.tsx')),
+    'default-read 没有剥掉注释');
+}
+
+// ─────────────────────────────────────────────────────────────
+// 孤儿接上入口之后，接线本身也要被守住——否则下次重构会把它悄悄摘掉，
+// 组件又变回「写完了但没人见过」。
+// ─────────────────────────────────────────────────────────────
+{
+  const today = readFileSync('src/components/TodayTab.tsx', 'utf8');
+  const settings = readFileSync('src/components/SettingsTab.tsx', 'utf8');
+  const player = readFileSync('src/components/SoundscapePlayer.tsx', 'utf8');
+  const synth = readFileSync('src/utils/audioSynth.ts', 'utf8');
+
+  check('声景播放器真的渲染在「睡眠」页（不是只 import）',
+    /<SoundscapePlayer\s*\/>/.test(today), '只有 import 没有渲染');
+  check('PWA 导出弹窗真的渲染在偏好页（不是只 import）',
+    /<PWAExportModal\s+isOpen=/.test(settings), '只有 import 没有渲染');
+  check('两个孤儿都已从待办清单移除（接上了就不能再挂着）',
+    !ORPHAN_KNOWN.some((o) => o.name === 'SoundscapePlayer' || o.name === 'PWAExportModal'));
+
+  // ★ 单例音频必须有人在卸载时停它。
+  // `sleepAudio` 是模块单例，而 `App.tsx` 用 `{activeTab === 'today' && <TodayTab/>}`
+  // 条件渲染——切标签就会卸载 `TodayTab`。
+  // 没有这句清理，切页之后**声音继续响、界面上一个控件都没有**。
+  check('声景播放器卸载时会停音频（否则切标签后声音没有控件可关）',
+    /return\s*\(\)\s*=>\s*\{[^}]*sleepAudio\.stop\(\)/.test(player),
+    '缺少卸载清理，切标签会让声音失控');
+
+  // ★★ 通用规则：**文案里声称的音频参数，必须真的存在于合成器代码里**。
+  // 本项目的头号缺陷类型就是「界面声称了代码做不到的事」，
+  // 而音频参数（频率、拍频、周期）是最容易被写错又最难被用户核实的一类。
+  // 这里不逐条硬编码期望值，而是拿文案里的数字去合成器里找——
+  // 于是改文案或改代码任一侧都会报警。
+  const descs = [...player.matchAll(/description:\s*'([^']+)'/g)].map((m) => m[1]!);
+  check('自检：确实取到了音轨描述（不为 0，否则下面整段空跑）',
+    descs.length >= 5, `只取到 ${descs.length} 条`);
+  const claimed = new Set<string>();
+  for (const d of descs) for (const m of d.matchAll(/(\d+(?:\.\d+)?)\s*(?:Hz|秒|s\b)/g)) claimed.add(m[1]!);
+  check('自检：描述里确实有可核对的数字（否则规则空转）',
+    claimed.size >= 2, `只取到 ${claimed.size} 个数字`);
+  const missing = [...claimed].filter((n) => !synth.includes(n));
+  check('文案声称的频率/周期都真实存在于音频合成器里',
+    missing.length === 0, missing.length ? `合成器里找不到：${missing.join('、')}Hz` : '');
+
+  // 反向：断言那个「同步心肺」的说法没有回来。
+  // 它断言的是**对用户身体的生理效果**，而代码只调制滤波器与音量。
+  check('音轨描述没有断言对用户身体的生理效果（代码管不到心肺节律）',
+    !/同步心肺|调节心率|降低血压|调节呼吸节律/.test(player), '又出现了无依据的生理断言');
+}
+
 
 // ---------------------------------------------------------------- 针对性回归：取消要真的取消
 /**
@@ -403,7 +483,7 @@ check('确实检查到了导出符号（不是空跑）', exportNames.size >= 50
  * 所以这里钉住接线本身：abort 必须挂到 cancelNativeDownload 上。
  */
 {
-  const llm = stripComments(readFileSync('src/utils/localLlmEngine.ts', 'utf8'));
+  const llm = readFileSync('src/utils/localLlmEngine.ts', 'utf8');
   const start = llm.indexOf('export async function downloadLocalLlm');
   // ★ 边界必须用**代码**地标，不能用注释地标：
   // 上面刚 stripComments 剥掉了 `//`，再拿 `// Web：…` 去找边界必然找不到，

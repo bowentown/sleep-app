@@ -16,7 +16,11 @@ const TRACKS: SoundscapeTrack[] = [
     id: 'ocean',
     name: '深海潮汐',
     category: 'nature',
-    description: '0.12Hz缓慢浪涌起伏，同步心肺静息节律',
+    // 0.12Hz 是真的（`audioSynth.ts` 里 `lfo.frequency.value = 0.12`，约 8 秒一个浪）。
+    // ★ 原文后半句「同步心肺静息节律」断言了**对用户身体的生理效果**，
+    // 而代码只做滤波器与音量的调制，管不到用户的心肺节律——
+    // 与本项目反复在修的「界面声称了代码做不到的事」是同一类。改成只描述声音本身。
+    description: '0.12Hz 缓慢浪涌起伏，约 8 秒一个浪',
     soundType: 'ocean',
     accentColor: 'from-teal-950/60 to-cyan-900/40',
   },
@@ -32,7 +36,8 @@ const TRACKS: SoundscapeTrack[] = [
     id: 'whitenoise',
     name: '粉红噪音',
     category: 'noise',
-    description: '能量均匀衰减的护眠声谱，隔绝突发杂音',
+    // 粉红噪音的定义是**每倍频程能量相等**（−3dB/oct），原文「能量均匀衰减」不准确。
+    description: '每倍频程等能量的粉红噪音，掩蔽突发杂音',
     soundType: 'whitenoise',
     accentColor: 'from-purple-950/60 to-indigo-950/50',
   },
@@ -52,6 +57,19 @@ export const SoundscapePlayer: React.FC = () => {
   const [volume, setVolume] = useState(0.5);
   const [timerMinutes, setTimerMinutes] = useState<number | null>(30);
   const [timerRemainingSeconds, setTimerRemainingSeconds] = useState<number | null>(null);
+
+  // ★ 卸载时必须停音频。
+  // `sleepAudio` 是**单例**（`export const sleepAudio = new SleepAudioSynthesizer()`），
+  // 而这个组件此前在卸载时只 `clearInterval`、**不停声音**。
+  // 后果：把它接进「睡眠」页之后，切到别的标签页会让 `TodayTab` 卸载
+  // （`App.tsx` 是 `{activeTab === 'today' && …}` 条件渲染），
+  // 于是**声音继续响、界面上却一个控件都没有**——用户只能去系统里杀进程。
+  // 宁可切页即静音：没有控件的声音比安静更糟。
+  useEffect(() => {
+    return () => {
+      sleepAudio.stop();
+    };
+  }, []);
 
   useEffect(() => {
     let interval: number;

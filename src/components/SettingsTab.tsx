@@ -7,10 +7,12 @@ import {
   Palette,
   Download,
   Upload,
+  Smartphone,
 } from 'lucide-react';
 import { UserProfile, CustomAlarmSetting, CustomAIConfig, SleepRecord, SleepStageSegment } from '../types/sleep';
 import { AlarmManager } from './AlarmManager';
 import { CustomAISettingsModal } from './CustomAISettingsModal';
+import { PWAExportModal } from './PWAExportModal';
 import { APP_THEMES, ThemeConfig } from '../utils/themeStyles';
 
 // 主题切换时同步切换桌面图标（原生 activity-alias 启停；Web 环境跳过）
@@ -113,6 +115,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   theme,
 }) => {
   const [isAIConfigOpen, setIsAIConfigOpen] = useState(false);
+  // 安装/导出引导此前是个**孤儿组件**——写完了、没有任何入口，谁都没见过。
+  // 放在「数据备份」卡里：它是把数据带走/换设备的入口，和导出备份是同一件事。
+  const [isPwaOpen, setIsPwaOpen] = useState(false);
 
   const handleExportJSON = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(records, null, 2));
@@ -377,6 +382,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
         <button
           type="button"
+          onClick={() => setIsPwaOpen(true)}
+          className={`w-full py-2 rounded-xl ${theme.cardInnerBg} hover:opacity-90 border ${theme.cardBorder} text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow`}
+        >
+          <Smartphone className="w-4 h-4 text-sky-400" />
+          <span>安装到手机 / 分享给朋友</span>
+        </button>
+
+        <button
+          type="button"
           onClick={onResetDemoData}
           className={`w-full py-2 rounded-xl ${theme.cardInnerBg} hover:opacity-80 border ${theme.cardInnerBorder} ${theme.textMuted} hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer`}
         >
@@ -384,6 +398,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <span>恢复示例数据（7天演示）</span>
         </button>
       </div>
+
+      {/* 安装与导出引导 */}
+      <PWAExportModal isOpen={isPwaOpen} onClose={() => setIsPwaOpen(false)} />
 
       {/* Custom AI Config Modal */}
       <CustomAISettingsModal

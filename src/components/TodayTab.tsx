@@ -5,12 +5,14 @@ import {
   ArrowRight,
   Wind,
   ChevronDown,
+  Music2,
 } from 'lucide-react';
 import { SleepRecord, UserProfile } from '../types/sleep';
 import { SleepHypnogram } from './SleepHypnogram';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { OneTapSleepTracker } from './OneTapSleepTracker';
 import { BreathingExercise } from './BreathingExercise';
+import { SoundscapePlayer } from './SoundscapePlayer';
 import { ThemeConfig } from '../utils/themeStyles';
 import { buildMorningSummary, describeWeekExtreme, describeDelta, minutesSinceNoon, describeVsSelf, describeMoodVsScore, scoreBand } from '../utils/sleepInsights';
 
@@ -36,6 +38,13 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   // 呼吸练习默认收起。首屏的排版密度已经调过一轮（工具入口刻意降权成轻量列表行），
   // 直接摊开一个 171 行的卡片会把「工具」重新抬到和「数据」一样重。
   const [showBreathing, setShowBreathing] = useState(false);
+
+  // 音轨播放器和上面那条「助眠音景」不是一回事：
+  // 「助眠音景」打开的是床边会话（3 条音轨 + 屏幕调暗），
+  // 这里是**独立播放器**，多出「夜风竹林」「粉红噪音」两条音轨，还有音量与定时器。
+  // 它此前是个**孤儿组件**——写完了、没有任何入口，谁都没见过。
+  // 默认同样收起，理由与呼吸练习一致。
+  const [showSoundscape, setShowSoundscape] = useState(false);
 
   // 得分环 + 数字 count-up（进入页面时 0 → 目标值，800ms 缓出）
   const [displayScore, setDisplayScore] = useState(0);
@@ -314,6 +323,33 @@ export const TodayTab: React.FC<TodayTabProps> = ({
             }`}
           />
         </button>
+
+        {/* 助眠音轨：同上，轻量列表行，点开才展开 */}
+        <button
+          type="button"
+          onClick={() => setShowSoundscape((v) => !v)}
+          aria-expanded={showSoundscape}
+          className={`w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/[0.04] transition-colors active:bg-white/[0.07] cursor-pointer group ${
+            showSoundscape ? `border-b ${theme.cardBorder}` : ''
+          }`}
+        >
+          <Music2 className={`w-4 h-4 shrink-0 ${theme.accentText}`} />
+          <span className="flex-1 min-w-0">
+            <span className="text-xs font-bold text-white block">助眠音轨</span>
+            <span className={`text-[11px] ${theme.textMuted} font-medium block`}>5 条音轨 · 音量与定时</span>
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 text-slate-500 group-hover:text-white transition-transform shrink-0 ${
+              showSoundscape ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+
+        {showSoundscape && (
+          <div className="p-3">
+            <SoundscapePlayer />
+          </div>
+        )}
 
         {showBreathing && (
           <div className="p-3">

@@ -15,6 +15,7 @@ import { renderToString } from 'react-dom/server';
 import { TrendsTab } from '../src/components/TrendsTab.js';
 import { SleepHypnogram } from '../src/components/SleepHypnogram.js';
 import { TodayTab } from '../src/components/TodayTab.js';
+import { AlarmManager } from '../src/components/AlarmManager.js';
 import { APP_THEMES } from '../src/utils/themeStyles.js';
 import {
   computeSleepRegularityIndex,
@@ -868,6 +869,67 @@ for (const [label, record] of cases) {
   check('页脚说明评分里含推演成分',
     clean.includes('40 分的推演分期'),
     '只说了深睡是推演，没说分数里有多少是推演');
+}
+
+// ——闹钟：不得声称一个代码做不到的唤醒行为。
+// `checkAlarm` 只做 `alarm.time === 当前分钟` 的精确匹配，
+// `smartWakeEnabled` / `smartWakeWindowMinutes` 从未参与响铃判定；
+// 原生插件里也没有任何传感器代码。而界面原来写的是「于设定时刻 ±20 分钟内**平缓唤醒**」
+// 和徽标「浅睡唤醒 ±20m」——读者会以为它已经在工作。
+// 属于和「深睡是推演值」同一类问题：UI 声称了一件代码做不到的事。
+{
+  // AlarmManager 依赖 audioSynth，后者的构造函数会读 window（浏览器音频上下文）。
+  // Node 里没有，垫一个最小实现，只为让它能渲染出来，不改变组件行为。
+  (globalThis as unknown as { window: unknown }).window = globalThis;
+  const store2: Record<string, string> = {};
+  (globalThis as unknown as { localStorage: unknown }).localStorage = {
+    getItem: (k: string) => store2[k] ?? null,
+    setItem: (k: string, v: string) => { store2[k] = String(v); },
+    removeItem: (k: string) => { delete store2[k]; },
+    clear: () => { for (const k of Object.keys(store2)) delete store2[k]; },
+  };
+
+  const alarm = {
+    id: 'a1', time: '07:00', label: '唤醒闹钟', enabled: true, repeatDays: [1, 2, 3, 4, 5],
+    tone: 'gentle_chime', vibrate: true, smartWakeEnabled: true, smartWakeWindowMinutes: 20,
+  } as unknown as Parameters<typeof AlarmManager>[0]['alarms'][number];
+
+  const html = render('AlarmManager(浅睡唤醒)', React.createElement(AlarmManager, {
+    alarms: [alarm], onUpdateAlarms: () => {}, theme,
+  }));
+  const clean = stripComments(html);
+
+  check('开启了浅睡唤醒的闹钟确实渲染出徽标（否则下面的断言是空跑）',
+    clean.includes('浅睡唤醒'), '徽标没渲染出来');
+  // 必须锚定在徽标上，不能只 contains('尚未生效')：
+  // InfoNote 的标题「为什么尚未生效」也含这三个字，只查关键词会匹配到错误的元素，
+  // 于是删掉徽标上的标记断言依然全绿（这是反向验证抓出来的）。
+  check('徽标上明确标注尚未生效',
+    /浅睡唤醒 ±\d+m[\s\S]{0,160}?尚未生效/.test(clean),
+    '徽标读起来仍像是一个正在工作的功能');
+  // JSX 里的 Markdown 语法不会渲染成粗体，会**原样显示星号**。
+  // 我第一版就写了 `闹钟只做**精确到分钟**的匹配`，DOM 里真的带着两个星号。
+  check('说明里没有漏渲染的 Markdown 星号',
+    !clean.includes('**'),
+    'JSX 里的 ** 会原样显示成星号');
+  check('说明里点明「还不会改变响铃时刻」',
+    clean.includes('还不会改变响铃时刻'),
+    '没有告诉用户它到底会不会提前响');
+  check('说明里点明了原因（没有采集体动或声音）',
+    /没有采集任何一项/.test(clean),
+    '只说了没生效，没说为什么');
+  check('不再声称「平缓唤醒」（那是做不到的承诺）',
+    !clean.includes('平缓唤醒'),
+    '又出现了"于设定时刻 ±N 分钟内平缓唤醒"这类承诺');
+
+  // 反向：没开这个功能的闹钟不该被贴上标记，否则标记失去意义
+  const offHtml = render('AlarmManager(未开浅睡唤醒)', React.createElement(AlarmManager, {
+    alarms: [{ ...alarm, smartWakeEnabled: false } as typeof alarm],
+    onUpdateAlarms: () => {}, theme,
+  }));
+  check('未开启时徽标上不做任何「尚未生效」标注',
+    !/浅睡唤醒[\s\S]{0,160}?尚未生效/.test(stripComments(offHtml)),
+    '未开启也被标注了，说明标注挂错了条件');
 }
 
 // ============ 汇总 ============

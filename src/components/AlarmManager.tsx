@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { CustomAlarmSetting } from '../types/sleep';
 import { sleepAudio } from '../utils/audioSynth';
+import { InfoNote } from './InfoNote';
 import { ThemeConfig } from '../utils/themeStyles';
 import {
   isNativePlatform,
@@ -360,8 +361,13 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
           <div className={`p-3 rounded-xl ${innerBg} border ${innerBorder} space-y-2`}>
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs text-white block font-bold">浅睡唤醒</span>
-                <span className="text-[11px] text-slate-300">于设定时刻 ±{newSmartWindow} 分钟内平缓唤醒</span>
+                <span className="text-xs text-white block font-bold">
+                  浅睡唤醒
+                  <span className="ml-1 text-[11px] font-normal text-amber-300/90">尚未生效</span>
+                </span>
+                <span className="text-[11px] text-slate-300">
+                  计划设定 ±{newSmartWindow} 分钟的唤醒窗口
+                </span>
               </div>
               <input
                 type="checkbox"
@@ -450,6 +456,11 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                     </div>
                     <div className="text-xs text-slate-300 mt-0.5 flex items-center flex-wrap gap-x-2 gap-y-1 font-medium">
                       <span className="whitespace-nowrap">{dayText}</span>
+                      {/* 这个徽标原来只写「浅睡唤醒 ±20m」，读起来像是一个正在工作的功能。
+                          实际 checkAlarm 只做 alarm.time === 当前分钟 的精确匹配，
+                          smartWakeEnabled / smartWakeWindowMinutes 从未参与响铃判定；
+                          原生插件里也没有任何传感器代码。也就是说它承诺了「提前平缓唤醒」，
+                          而代码做不到。放在这里（而不是新增表单里）是因为用户正是在这里看到它。 */}
                       {alarm.smartWakeEnabled && (
                         <span className="inline-flex items-center text-indigo-300 bg-indigo-950 border border-indigo-600 px-1 py-0.5 rounded text-[11px] font-bold">
                           <button
@@ -461,6 +472,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                             −
                           </button>
                           <span className="tabular-nums">浅睡唤醒 ±{alarm.smartWakeWindowMinutes}m</span>
+                          <span className="text-amber-300 font-normal">尚未生效</span>
                           <button
                             type="button"
                             title="增大唤醒窗口"
@@ -472,6 +484,18 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                         </span>
                       )}
                     </div>
+                    {alarm.smartWakeEnabled && (
+                      <div className="mt-1">
+                        <InfoNote theme={theme} summary="为什么尚未生效">
+                          判断「浅睡」需要在整夜读取体动（加速度计）或声音，当前版本没有采集任何一项，
+                          闹钟只做<strong>精确到分钟</strong>的匹配。所以这个窗口只是把偏好记下来了，
+                          <strong>还不会改变响铃时刻</strong>——在实际实现之前，唤醒就是你设定的那一刻，
+                          不会提前也不会推后。保留这个开关，是因为它决定将来采集数据的窗口长度，
+                          参考的默认值是 30 分钟（Sleep as Android 公开的人群数据表明，
+                          30 分钟是「睡得更久」与「抓到浅睡」之间的最佳折中）。
+                        </InfoNote>
+                      </div>
+                    )}
                   </div>
                 </div>
 

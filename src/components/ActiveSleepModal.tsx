@@ -327,6 +327,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
         </div>
         <button
           onClick={onClose}
+          aria-label="关闭"
           className={`p-2 rounded-full ${theme.cardInnerBg} ${theme.textMuted} hover:opacity-80 transition-opacity`}
         >
           <X className="w-4 h-4" />

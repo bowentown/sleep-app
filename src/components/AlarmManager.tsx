@@ -498,6 +498,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                   <button
                     type="button"
                     onClick={() => handleDeleteAlarm(alarm.id)}
+                    aria-label={`删除闹钟 ${alarm.time}`}
                     className="p-2 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -507,6 +508,9 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                   <button
                     type="button"
                     onClick={() => handleToggleAlarm(alarm.id)}
+                    role="switch"
+                    aria-checked={alarm.enabled}
+                    aria-label={`${alarm.time} 的闹钟`}
                     className={`w-12 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer ${
                       alarm.enabled ? 'bg-indigo-600' : 'bg-slate-700'
                     }`}

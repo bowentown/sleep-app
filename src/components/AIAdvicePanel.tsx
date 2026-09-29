@@ -547,6 +547,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
             type="button"
             onClick={() => handleSendMessage()}
             disabled={!inputText.trim() || isSendingChat}
+            aria-label="发送"  /* 图标按钮：读屏否则只会念「按钮」 */
             className="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-all cursor-pointer"
           >
             <Send className="w-4 h-4" />

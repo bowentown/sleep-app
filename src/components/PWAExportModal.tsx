@@ -59,6 +59,7 @@ git push -u origin main`;
           </div>
           <button
             onClick={onClose}
+            aria-label="关闭"
             className="p-1 text-slate-400 hover:text-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />

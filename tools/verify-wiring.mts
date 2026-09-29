@@ -212,6 +212,106 @@ for (const a of DISPLAY_ONLY_OK) {
     `多余的豁免是在掩护问题，不是在澄清规则`);
 }
 
+// ---------------------------------------------------------------- 规则 3：导出了却无人引用
+/**
+ * 这一类是**「有实现、无入口」**——和前面两条正好相反：
+ *
+ *   规则 1/2：界面声称了代码做不到的事（有承诺、无实现）
+ *   规则 3  ：代码有能力，但没有任何路径能到达它（有实现、无入口）
+ *
+ * 两者都是「界面与能力脱节」，只是方向反了。
+ *
+ * 这条规则第一次运行就抓到了 6 个：`cancelNativeDownload`（详见下）、
+ * 以及 **4 个完整的 UI 组件**（`AndroidStatusBar` / `BreathingExercise` /
+ * `PWAExportModal` / `SoundscapePlayer`）——它们从未被 import，也没有动态导入，
+ * 也就是说用户根本到不了这些界面。
+ *
+ * ★ 引用搜索**必须包含 `tools/`**：有些导出只被断言使用（比如给测试用的纯函数），
+ * 只扫 `src/` 会把他们误判成死代码。
+ */
+const refFiles = [...files, ...walk('tools').filter((f) => /\.mts?$/.test(f))];
+const refSources = refFiles.map((f) => stripComments(readFileSync(f, 'utf8')));
+
+const exportNames = new Map<string, { file: string; dup: boolean }>();
+for (const file of files) {
+  const src = stripComments(readFileSync(file, 'utf8'));
+  const re = /export\s+(?:async\s+)?(?:function|const|class|interface|type|enum)\s+(\w+)/g;
+  for (const m of src.matchAll(re)) {
+    const prev = exportNames.get(m[1]);
+    if (prev) prev.dup = true;
+    else exportNames.set(m[1], { file: relOf(file), dup: false });
+  }
+}
+
+/** 已知「建好了但还到不了」的符号。每条都要写清去向，它同时也是给用户的待办清单。 */
+const ORPHAN_KNOWN: Array<{ name: string; why: string }> = [
+  { name: 'BreathingExercise', why: '呼吸练习组件已完整，但没有任何界面入口——待产品决定挂到哪个页签' },
+  { name: 'SoundscapePlayer', why: '声景播放器组件已完整，但没有入口——待产品决定' },
+  { name: 'PWAExportModal', why: 'PWA 导出弹窗已完整，但没有入口——待产品决定' },
+  { name: 'AndroidStatusBar', why: 'Android 状态栏配色组件，没有入口——可能已被主题系统取代，待确认后删除' },
+  { name: 'moonLitPath', why: '月相相关的绘图辅助函数，未被使用——可能是重构遗留，待确认后删除' },
+];
+
+const orphans: Array<{ name: string; file: string }> = [];
+for (const [name, info] of exportNames) {
+  if (info.dup) continue;                       // 多处同名导出，无法可靠判定
+  const re = new RegExp(`\\b${name}\\b`, 'g');
+  let total = 0;
+  for (const src of refSources) total += [...src.matchAll(re)].length;
+  if (total <= 1) orphans.push({ name, file: info.file });   // 只有定义处那一次
+}
+
+check('导出的符号都被引用到了（没有「有实现、无入口」）',
+  orphans.every((o) => ORPHAN_KNOWN.some((k) => k.name === o.name)),
+  orphans.filter((o) => !ORPHAN_KNOWN.some((k) => k.name === o.name))
+    .map((o) => `${o.file} → ${o.name}`).join('、') +
+  ' —— 要么接上入口，要么确认是废弃代码后删除');
+
+// 已知孤儿也必须仍然"孤儿"：一旦有人给它接上入口，这条记录就该删掉。
+for (const k of ORPHAN_KNOWN) {
+  check(`孤儿记录仍然成立：${k.name}`,
+    orphans.some((o) => o.name === k.name),
+    `${k.name} 已经被引用了——说明它接上了入口，请把这条记录删掉（它是待办清单，不是永久豁免）`);
+}
+
+check('确实检查到了导出符号（不是空跑）', exportNames.size >= 50, `只收集到 ${exportNames.size} 个`);
+
+// ---------------------------------------------------------------- 针对性回归：取消要真的取消
+/**
+ * 死导出规则能保证 `cancelNativeDownload` 被引用，但**保证不了它被用对**。
+ *
+ * 缺陷原状：`downloadLocalLlm` 的原生分支调 `plugin.downloadModel()` 时**不传 signal**，
+ * UI 的「取消」只做 `abort()`——那只中止 JS 的等待，**原生下载会继续把 462 MB 跑完**。
+ * 而 `setLlmProgress(null)` 在 await 之后，所以用户点了取消进度条也不消失，
+ * 看起来像按钮坏了。
+ *
+ * 所以这里钉住接线本身：abort 必须挂到 cancelNativeDownload 上。
+ */
+{
+  const llm = stripComments(readFileSync('src/utils/localLlmEngine.ts', 'utf8'));
+  const start = llm.indexOf('export async function downloadLocalLlm');
+  // ★ 边界必须用**代码**地标，不能用注释地标：
+  // 上面刚 stripComments 剥掉了 `//`，再拿 `// Web：…` 去找边界必然找不到，
+  // `indexOf` 返回 -1，`slice(0, -1)` 就退化成"整个文件剩余部分"——
+  // 于是后面的 `cancelNativeDownload` **定义**也被算进来，条件恒真、断言空跑。
+  // 这是我自己写的一条空跑断言，靠反向验证（拆掉接线它不报）才发现。
+  // 注意必须**从 start 之后**开始找：`caches` 在文件更前面也出现过，
+  // 不加 fromIndex 会拿到一个在 start 之前的边界（实测 start=5591 / end=3796），
+  // 那样 scoped 为空、断言又会以另一种方式空跑。
+  const end = llm.indexOf('if (typeof caches ===', start);
+  check('断言能定位到原生分支的边界（否则下面的检查会空跑）',
+    start >= 0 && end > start, `start=${start} end=${end}`);
+  const scoped = start >= 0 && end > start ? llm.slice(start, end) : '';
+
+  check('原生下载的取消被接到 AbortSignal 上',
+    /addEventListener\('abort',\s*onAbort/.test(scoped) && /cancelNativeDownload\(\)/.test(scoped),
+    'downloadLocalLlm 的原生分支没有把 abort 转到 cancelNativeDownload()——' +
+    '用户点「取消」时原生下载会继续跑完');
+  check('abort 监听器被摘掉（避免重复注册导致泄漏）',
+    /removeEventListener\('abort',\s*onAbort/.test(scoped),
+    '注册了 abort 监听却没有移除');
+}
+
 // ---------------------------------------------------------------- 汇总
 console.log(`\n${'='.repeat(60)}`);
 if (failures.length === 0) {

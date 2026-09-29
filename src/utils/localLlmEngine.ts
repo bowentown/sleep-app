@@ -218,6 +218,18 @@ export async function downloadLocalLlm(
 ): Promise<void> {
   const plugin = getNativePlugin();
   if (plugin) {
+    // ★ 让 AbortSignal 真的能停掉**原生侧**的下载。
+    //
+    // 缺陷背景：原来这里只调用 plugin.downloadModel()，不传 signal，
+    // 而 UI 的「取消」按钮只做 llmAbortRef.current?.abort()——那只中止了 JS 的等待，
+    // **原生下载会继续把 462 MB 跑完**。更糟的是 setLlmProgress(null) 在 await 之后，
+    // 所以用户点了取消，进度条不会消失，看起来像按钮坏了。
+    //
+    // cancelNativeDownload() 本来就是为了这件事存在的，但此前没有任何地方调用它
+    // （它是「导出了却无人引用」的符号之一，见 tools/verify-wiring.mts 的死导出检查）。
+    const onAbort = () => { void cancelNativeDownload(); };
+    signal?.addEventListener('abort', onAbort, { once: true });
+
     let progressHandle: any = null;
     let lastError: unknown = null;
     for (const url of [NATIVE_LLM_MODEL.url, NATIVE_LLM_MODEL.fallbackUrl]) {
@@ -245,6 +257,7 @@ export async function downloadLocalLlm(
         }
       }
     }
+    signal?.removeEventListener('abort', onAbort);
     const detail = lastError instanceof Error ? lastError.message : String(lastError);
     throw new Error(detail || '所有下载源均不可用');
   }

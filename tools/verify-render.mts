@@ -12,6 +12,7 @@
  */
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
 import { TrendsTab } from '../src/components/TrendsTab.js';
 import { SleepHypnogram } from '../src/components/SleepHypnogram.js';
 import { TodayTab } from '../src/components/TodayTab.js';
@@ -930,6 +931,68 @@ for (const [label, record] of cases) {
   check('未开启时徽标上不做任何「尚未生效」标注',
     !/浅睡唤醒[\s\S]{0,160}?尚未生效/.test(stripComments(offHtml)),
     '未开启也被标注了，说明标注挂错了条件');
+}
+
+// ——首页要显示「分数与你自己记录的感受对不上」。
+// wakingMood 此前被录入却从未被读取；现在用起来了，就必须两侧都测：
+// 矛盾时要出现，一致时**必须不出现**（JITAI：显式设计"不提供任何东西"）。
+{
+  const store3: Record<string, string> = {};
+  (globalThis as unknown as { localStorage: unknown }).localStorage = {
+    getItem: (k: string) => store3[k] ?? null,
+    setItem: (k: string, v: string) => { store3[k] = String(v); },
+    removeItem: (k: string) => { delete store3[k]; },
+    clear: () => { for (const k of Object.keys(store3)) delete store3[k]; },
+  };
+
+  const renderTodayWith = (label: string, records: ReturnType<typeof getInitialSleepLogs>) =>
+    stripComments(render(label, React.createElement(TodayTab, {
+      records,
+      userProfile: {
+        name: '体验用户', targetBedtime: '23:00', targetWakeTime: '07:00', targetDurationHours: 8,
+      } as unknown as UserProfile,
+      theme,
+      onOpenActiveSleep: () => {},
+      onOpenManualLog: () => {},
+      onSaveRecord: () => {},
+    })));
+
+  // 一致：演示数据里"优/良 配 refreshed/neutral、差 配 groggy"本来就自洽
+  const demo = getInitialSleepLogs();
+  const consistentHtml = renderTodayWith('TodayTab(感受一致)', demo);
+  check('一致时首页不出现「以你的感受为准」',
+    !consistentHtml.includes('以你的感受为准'),
+    '一致时也出面对照，首页一打开就在制造噪声');
+
+  // 矛盾：把最新一晚改成"分数 99 但记录昏沉困倦"
+  const conflicted = [{ ...demo[0], sleepScore: 99, wakingMood: 'groggy' as const }, ...demo.slice(1)];
+  const conflictHtml = renderTodayWith('TodayTab(感受矛盾)', conflicted);
+  check('矛盾时首页确实渲染出对照（否则下面的断言是空跑）',
+    conflictHtml.includes('以你的感受为准'), '矛盾了却没出面对照');
+  check('对照里引用了用户记录的原话',
+    conflictHtml.includes('昏沉困倦'), '没引用用户自己记录的感受');
+  check('对照出现在分数环之前（先给"以你为准"，再给分数）',
+    conflictHtml.indexOf('以你的感受为准') < conflictHtml.indexOf('tabular-nums'),
+    '顺序反了：分数压在"以你的感受为准"前面');
+}
+
+// ——一键记录不得根据时长编造主观感受。
+// 原来是 `timeInBed < 30 ? 'tired' : 'refreshed'`：用时长替用户说他醒来什么感觉，
+// 而且方向必然与分数一致，等于把"感受"变成分数的回声。
+// 这是源码级护栏（该分支需要交互才能触发），刻意写窄：只钉这一条推导。
+{
+  // 必须剥掉 JS 行注释。`stripComments` 是给渲染出的 HTML 用的（剥 <!-- -->），
+  // 不处理 `//`；而我在改动处正好保留了一句「这里原来是 `timeInBed < 30 ? 'tired' : 'refreshed'`」
+  // 作为改动理由，不剥掉它这条断言会匹配到自己的注释而永远为红。
+  const src = readFileSync(
+    new URL('../src/components/OneTapSleepTracker.tsx', import.meta.url), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  check('一键记录不再由时长推导醒来感受',
+    !/timeInBed\s*<\s*\d+\s*\?\s*'tired'/.test(src),
+    "又出现了用 timeInBed 编造 'tired' 的写法");
+  check('一键记录写入的是"没说"的中性值',
+    /wakingMood:\s*'neutral'/.test(src),
+    'wakingMood 的取值又变成了一个主观断言');
 }
 
 // ============ 汇总 ============

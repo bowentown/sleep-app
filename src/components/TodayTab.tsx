@@ -11,7 +11,7 @@ import { SleepHypnogram } from './SleepHypnogram';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { OneTapSleepTracker } from './OneTapSleepTracker';
 import { ThemeConfig } from '../utils/themeStyles';
-import { buildMorningSummary, describeWeekExtreme, describeDelta, minutesSinceNoon, describeVsSelf } from '../utils/sleepInsights';
+import { buildMorningSummary, describeWeekExtreme, describeDelta, minutesSinceNoon, describeVsSelf, describeMoodVsScore, scoreBand } from '../utils/sleepInsights';
 
 interface TodayTabProps {
   records: SleepRecord[];
@@ -50,11 +50,14 @@ export const TodayTab: React.FC<TodayTabProps> = ({
     return () => cancelAnimationFrame(raf);
   }, [latestRecord?.sleepScore, latestRecord?.id]);
 
+  // 档位判定只此一处（scoreBand），颜色映射留在这里。
+  // 原先档位是在这个函数里写死的，别处想判断"优/良/平/差"只能再抄一遍阈值。
   const getScoreColor = (score: number) => {
-    if (score >= 88) return { text: 'text-indigo-400', stroke: '#818cf8', label: '优' };
-    if (score >= 78) return { text: 'text-emerald-400', stroke: '#34d399', label: '良' };
-    if (score >= 68) return { text: 'text-amber-400', stroke: '#fbbf24', label: '平' };
-    return { text: 'text-rose-400', stroke: '#f87171', label: '差' };
+    const label = scoreBand(score);
+    if (label === '优') return { text: 'text-indigo-400', stroke: '#818cf8', label };
+    if (label === '良') return { text: 'text-emerald-400', stroke: '#34d399', label };
+    if (label === '平') return { text: 'text-amber-400', stroke: '#fbbf24', label };
+    return { text: 'text-rose-400', stroke: '#f87171', label };
   };
 
   const scoreInfo = latestRecord ? getScoreColor(latestRecord.sleepScore) : getScoreColor(85);
@@ -63,6 +66,12 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   // 有效的形式就是自指对照，而不是给一个绝对分数；且它对本来睡眠稳定的组完全无效应。
   // 可用晚数不足时 describeVsSelf 返回 null，此处不显示——宁可不给，也不给不可靠的数。
   const vsSelf = describeVsSelf(records);
+
+  // 分数与「你自己记录的感受」矛盾时才出现。
+  // wakingMood 此前被录入却从未被读取——App 问了用户醒来什么感觉，然后扔掉。
+  // 而用户的主观感受是这件事上比分数更硬的证据（见 describeMoodVsScore 的注释）。
+  // 一致时不显示：JITAI 要求显式设计"不提供任何东西"，多说一句只会让这条失去分量。
+  const moodConflict = describeMoodVsScore(latestRecord);
 
   // 起床后的一句话总结。报告卡本身是一张数据表，人得自己把数字翻译成结论；
   // 这句话只做「把已有数字串成一个判断」，比较的对象（目标时长、目标就寝、
@@ -125,6 +134,10 @@ export const TodayTab: React.FC<TodayTabProps> = ({
               原来的视觉权重（整张卡最大的元素）与它能承载的信息量不匹配。 */}
           {vsSelf && (
             <p className="text-sm leading-relaxed text-slate-100 mb-2">{vsSelf.text}</p>
+          )}
+
+          {moodConflict && (
+            <p className="text-sm leading-relaxed text-amber-200 font-medium mb-2">{moodConflict}</p>
           )}
 
           <div className="flex items-center justify-between gap-5 my-1">

@@ -400,3 +400,69 @@ export function describeVsSelf(
     deltaMinutes: delta,
   };
 }
+
+
+/** 醒来感受的显示文案。四处录入（手动/实时/一键）用的措辞略有不同，这里统一成一套。 */
+export const WAKING_MOOD_LABEL: Record<SleepRecord['wakingMood'], string> = {
+  refreshed: '精力充沛',
+  neutral: '平淡一般',
+  tired: '略微疲劳',
+  groggy: '昏沉困倦',
+};
+
+/** 分数档位。抽出来是为了让「档位」只有一处定义——
+ *  原先它藏在 TodayTab 的 getScoreColor 里，别的模块想判断档位只能自己再抄一遍。 */
+export function scoreBand(score: number): '优' | '良' | '平' | '差' {
+  if (score >= 88) return '优';
+  if (score >= 78) return '良';
+  if (score >= 68) return '平';
+  return '差';
+}
+
+/**
+ * 分数与「你自己记录的感受」是否对不上。
+ *
+ * 为什么要做这件事：`wakingMood` 在三处被录入、被 sanitize 保留、被演示数据填充，
+ * 但**在此之前没有任何一处读取它**——App 问用户"你醒来感觉怎么样"，然后扔掉。
+ *
+ * 而它恰恰是这个页面上**唯一来自用户本人的判断**。分数有 40 分来自推演的分期
+ * （见 sleepFindings 的 provenance 一节），用户的主观感受反而是这件事上更硬的证据：
+ *
+ *   - Gavriloff 2018 (DOI 10.1111/jsr.12726) 给 63 名失眠者推送**伪造的**睡眠评分，
+ *     负面组当晚警觉下降 d=0.79、疲劳上升 d=0.55。**分数会改变你的体感，
+ *     所以体感不能反过来由分数定义。**
+ *   - Apple HIG：*"never imply that something's wrong or that people are at fault,
+ *     and never leave people without a clear next step."*
+ *
+ * 设计上遵循 JITAI 的「显式设计不提供任何东西」(Nahum-Shani 2018,
+ * DOI 10.1007/s12160-016-9830-8)：**只有两者矛盾时才说话**。
+ * 一致的时候多一句话只会制造噪声，而且会让这条信息失去分量。
+ *
+ * @returns 矛盾时的说明文案；一致（或分数不可用）时返回 null
+ */
+export function describeMoodVsScore(record: SleepRecord | null | undefined): string | null {
+  if (!record) return null;
+  const mood = record.wakingMood;
+  const score = record.sleepScore;
+  if (typeof score !== 'number' || !Number.isFinite(score)) return null;
+  if (!(mood in WAKING_MOOD_LABEL)) return null;
+
+  // 「好感受」只在 refreshed 这一档。neutral 是 App 里"没说"的默认值
+  // （buildSleepRecord 里 `input.wakingMood ?? 'neutral'`），不能当成"感觉不错"，
+  // 否则一键记录（不问感受）会和差分数凑出一条假的矛盾。
+  const feelsGood = mood === 'refreshed';
+  const feelsBad = mood === 'tired' || mood === 'groggy';
+  const band = scoreBand(score);
+  const scoresGood = score >= 78; // 优 或 良
+  const scoresBad = score < 68; // 差
+
+  const label = WAKING_MOOD_LABEL[mood];
+
+  if (scoresGood && feelsBad) {
+    return `分数是「${band}」，但你记录的感受是「${label}」——以你的感受为准。`;
+  }
+  if (scoresBad && feelsGood) {
+    return `分数偏低，但你记录的感受是「${label}」——以你的感受为准。`;
+  }
+  return null;
+}

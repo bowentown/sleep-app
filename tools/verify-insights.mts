@@ -14,6 +14,8 @@ import {
   buildTargetTimeline,
   describeDelta,
   describeVsSelf,
+  describeMoodVsScore,
+  scoreBand,
   minutesSinceNoon,
   fromMinutesSinceNoon,
   getBedtimeStatus,
@@ -426,6 +428,65 @@ console.log('\n══ 自指对照：和自己的基线比，而不是和临床�
   const onDemo = describeVsSelf(getInitialSleepLogs());
   check('演示数据（7 晚）能产出自指对照', onDemo !== null, '真实数据通路上没产出');
   check('对照引用了真实的晚数', onDemo?.text.includes('最近 6 晚') === true, onDemo?.text);
+}
+
+console.log('\n══ 主观感受与分数的矛盾：以你的感受为准 ══');
+{
+  const mk = (score: number, mood: string): any => ({
+    id: 'x', date: '2026-09-22', bedtime: '23:00', wakeTime: '07:00', durationMinutes: 456,
+    deepSleepMinutes: 95, lightSleepMinutes: 265, remSleepMinutes: 96, awakeMinutes: 19,
+    sleepScore: score, sleepEfficiency: 96, latencyMinutes: 15, wakeCount: 1,
+    wakingMood: mood, preSleepHabits: [],
+  });
+
+  // wakingMood 此前被三处录入、被 sanitize 保留、被演示数据填充，却**没有任何一处读取**。
+  // 这里首先钉住"它真的被用起来了"。
+  const high = describeMoodVsScore(mk(99, 'groggy'));
+  const low = describeMoodVsScore(mk(60, 'refreshed'));
+  check('高分 + 记录疲惫 → 出面对照', high !== null, String(high));
+  check('低分 + 记录精力充沛 → 出面对照', low !== null, String(low));
+
+  // 最核心的一条：不能否定用户的感受，必须以它为准
+  check('矛盾时明确「以你的感受为准」（不否定用户）',
+    high?.includes('以你的感受为准') === true && low?.includes('以你的感受为准') === true,
+    `${high} / ${low}`);
+  check('矛盾时引用的是用户自己的原话（含感受标签）',
+    high?.includes('昏沉困倦') === true && low?.includes('精力充沛') === true,
+    `${high} / ${low}`);
+
+  // 反向：不能出现把用户感受说成错的措辞
+  const NEGATING = /其实|误记|记错|并不|错觉|不用担心|别在意/;
+  check('文案不把用户的感受说成错的',
+    !NEGATING.test(high ?? '') && !NEGATING.test(low ?? ''),
+    '出现了否定用户感受的措辞');
+
+  // 一致时**必须不说话**（JITAI 要求显式设计「不提供任何东西」）
+  check('一致时不出面对照（高分+精力充沛）', describeMoodVsScore(mk(99, 'refreshed')) === null);
+  check('一致时不出面对照（低分+昏沉）', describeMoodVsScore(mk(60, 'groggy')) === null);
+  check('一致时不出面对照（中档+略微疲劳）', describeMoodVsScore(mk(74, 'tired')) === null);
+
+  // neutral 是 App 里"没问/没说"的默认值（buildSleepRecord 的 ?? 'neutral'），
+  // 一键记录也会落成它。把它当成"感觉不错"会凭空造出矛盾。
+  check('neutral 不被当成「感觉好」', describeMoodVsScore(mk(60, 'neutral')) === null,
+    '把"没说"当成了"感觉好"');
+  check('neutral 也不被当成「感觉坏」', describeMoodVsScore(mk(99, 'neutral')) === null,
+    '把"没说"当成了"感觉坏"');
+
+  check('空记录不崩', describeMoodVsScore(null) === null && describeMoodVsScore(undefined) === null);
+  check('分数非有限值时不说话', describeMoodVsScore(mk(NaN, 'groggy')) === null);
+
+  // 演示数据必须一条都不触发——否则首页一打开就在制造噪声
+  const demoMoods = getInitialSleepLogs().map((r) => describeMoodVsScore(r));
+  check('演示数据不产生任何假矛盾',
+    demoMoods.every((m) => m === null),
+    `有 ${demoMoods.filter((m) => m !== null).length} 条不该出现的对照`);
+
+  // scoreBand 是档位的唯一定义（原先写死在 TodayTab 的 getScoreColor 里）
+  check('档位边界正确（88/78/68）',
+    scoreBand(99) === '优' && scoreBand(88) === '优' && scoreBand(87) === '良'
+    && scoreBand(78) === '良' && scoreBand(77) === '平' && scoreBand(68) === '平'
+    && scoreBand(67) === '差',
+    `${scoreBand(88)}/${scoreBand(87)}/${scoreBand(78)}/${scoreBand(77)}/${scoreBand(68)}/${scoreBand(67)}`);
 }
 
 // ---------------------------------------------------------------- 汇总

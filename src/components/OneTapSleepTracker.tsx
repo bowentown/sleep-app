@@ -78,7 +78,12 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
       wakeTime: wakeTimeStr,
       latencyMinutes: isMicroSession ? 2 : DEFAULT_LATENCY_MINUTES,
       wakeCount: isMicroSession ? 0 : 1,
-      wakingMood: timeInBed < 30 ? 'tired' : 'refreshed',
+      // 这里原来是 `timeInBed < 30 ? 'tired' : 'refreshed'`——**用时长编造主观感受**。
+      // 一键记录本来就不问感受，凭 30 分钟编一个出来，等于替用户说他醒来是什么感觉，
+      // 而且方向必然与分数一致（睡得短→tired），把「感受」变成分数的回声。
+      // 改用 'neutral'：这也是 buildSleepRecord 里 `input.wakingMood ?? 'neutral'` 的既有默认，
+      // 且 describeMoodVsScore 明确不把 neutral 当作「感觉不错」，不会凑出假的矛盾。
+      wakingMood: 'neutral',
       preSleepHabits: [],
       targetDurationMinutes: Math.round((targetDurationHours || 8) * 60),
     });

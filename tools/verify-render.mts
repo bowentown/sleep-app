@@ -792,6 +792,39 @@ for (const [label, record] of cases) {
     clear: () => { for (const k of Object.keys(store)) delete store[k]; },
   };
 
+  const renderWith = (label: string, records: ReturnType<typeof getInitialSleepLogs>) =>
+    render(label, React.createElement(TodayTab, {
+      records,
+      userProfile: {
+        name: '体验用户', targetBedtime: '23:00', targetWakeTime: '07:00', targetDurationHours: 8,
+      } as unknown as UserProfile,
+      theme,
+      onOpenActiveSleep: () => {},
+      onOpenManualLog: () => {},
+      onSaveRecord: () => {},
+    }));
+
+  // 低分提示只在 sleepScore < 75 时出现（演示数据里 60 / 74 那两晚）。
+  // 少了这个用例，上面三条关于提示的断言会在**提示根本没渲染**时空跑通过。
+  const demoAll = getInitialSleepLogs();
+  const lowScored = demoAll.find((r) => r.sleepScore < 75);
+  if (lowScored) {
+    const lowHtml = stripComments(renderWith('TodayTab(低分提示)', [lowScored, ...demoAll.filter((r) => r.id !== lowScored.id)]));
+    check('低分时确实渲染出了提示（否则下面的断言是空跑）',
+      /💡|提示/.test(lowHtml), '低分用例没渲染出提示');
+    check('低分提示不再断言无法显示的生理代偿',
+      !lowHtml.includes('自动通过增加深睡代偿'),
+      '又出现了那个 App 自己都显示不出来的代偿承诺');
+    check('低分提示不给无依据的安心承诺',
+      !lowHtml.includes('无需担忧'),
+      '"无需担忧"是安心承诺，没有证据支持这类说法');
+    check('低分提示给出可执行动作',
+      /先固定起床时间/.test(lowHtml),
+      '只宽慰不给动作，正是低效能感那一种配方');
+  } else {
+    check('演示数据里存在低分夜晚（低分提示的测试前提）', false, '找不到 sleepScore<75 的演示记录');
+  }
+
   const html = render('TodayTab(自指对照)', React.createElement(TodayTab, {
     records: getInitialSleepLogs(),
     userProfile: {
@@ -826,6 +859,12 @@ for (const [label, record] of cases) {
   check('分数环容器已缩小（w-16 而非 w-20）',
     clean.includes('w-16 h-16') && !clean.includes('w-20 h-20'),
     '分数环尺寸被调回去了');
+  // 低分提示原写作「身体今夜会自动通过增加深睡代偿，无需担忧」，两个问题：
+  // ①它断言的生理代偿，依据是 App 自己推演出的深睡值，而这个值实测是"睡得越少越高"，
+  //   App 永远显示不出它承诺的那个代偿；
+  // ②「无需担忧」是安心承诺，无证据支持——且 Witte & Allen 2000 指出
+  //   "高威胁 + 低效能感"才是反效果配方，一句不给动作的宽慰正是低效能感那一种。
+  // 现在改成给一个用户做得到的动作（沿用发现引擎里已有的杠杆）。
   check('页脚说明评分里含推演成分',
     clean.includes('40 分的推演分期'),
     '只说了深睡是推演，没说分数里有多少是推演');

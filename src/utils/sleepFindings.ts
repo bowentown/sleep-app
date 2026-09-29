@@ -29,8 +29,25 @@ import { SleepRecord, UserProfile } from '../types/sleep';
 
 export type FindingSeverity = 'act' | 'watch' | 'good';
 
+/**
+ * 数据的来源。这个字段存在的唯一理由是**防止把模拟量当测量量**。
+ *
+ * 背景（实测）：`generateSleepStages` 按固定周期模型（前两周期深睡 34%、之后 12%）
+ * 从「就寝/起床/入睡用时/夜醒次数」算出分期，深睡占比因此几乎完全由睡眠时长决定
+ * （穷举 8470 组输入，与时长相关 r = −0.769；触发「深睡偏低」的样本 89% 是睡 ≥9 小时的人）。
+ *
+ * 所以阶段拆分是 `modeled`——推演值，不是测量值。
+ * 就寝时刻、起床时刻、入睡用时、夜醒次数、醒来心情是用户直接录入的，属 `measured`。
+ *
+ * 规则：`modeled` 的指标不得进入默认清单、不得判为 act。
+ * 因为对它下临床判断，等于对模型下诊断。
+ */
+export type Provenance = 'measured' | 'modeled';
+
 export interface Finding {
   id: string;
+  /** 这个指标的数值从哪来（见 Provenance 的说明） */
+  provenance: Provenance;
   severity: FindingSeverity;
   /** 指标名，如「深睡占比」 */
   metric: string;
@@ -219,6 +236,7 @@ export function computeHabitFindings(records: SleepRecord[]): Finding[] {
     if (nWith === 0) {
       out.push({
         id: `habit_${h.key}_nodata`,
+        provenance: 'measured',
         severity: 'watch',
         metric: `${h.label}的影响`,
         value: '尚无记录',
@@ -239,6 +257,7 @@ export function computeHabitFindings(records: SleepRecord[]): Finding[] {
     if (vWithout === null || nWith < 2 || withoutH.length < 2) {
       out.push({
         id: `habit_${h.key}_thin`,
+        provenance: 'measured',
         severity: 'watch',
         metric: `${h.label}的影响`,
         value: `${nWith} 晚有记录`,
@@ -261,6 +280,7 @@ export function computeHabitFindings(records: SleepRecord[]): Finding[] {
     if (rel >= HABIT_REL_THRESHOLD && worse) {
       out.push({
         id: `habit_${h.key}_bad`,
+        provenance: 'measured',
         severity: 'act',
         metric: `${h.label}的影响`,
         value: `${round(vWith)} → ${round(vWithout)}${h.unit}`,
@@ -275,6 +295,7 @@ export function computeHabitFindings(records: SleepRecord[]): Finding[] {
     } else if (rel >= HABIT_REL_THRESHOLD) {
       out.push({
         id: `habit_${h.key}_good`,
+        provenance: 'measured',
         severity: 'good',
         metric: `${h.label}的影响`,
         value: `${round(vWith)} → ${round(vWithout)}${h.unit}`,
@@ -288,6 +309,7 @@ export function computeHabitFindings(records: SleepRecord[]): Finding[] {
     } else {
       out.push({
         id: `habit_${h.key}_neutral`,
+        provenance: 'measured',
         severity: 'good',
         metric: `${h.label}的影响`,
         value: `${round(vWith)} → ${round(vWithout)}${h.unit}`,
@@ -350,6 +372,7 @@ export function computeTrendFinding(records: SleepRecord[], profile?: UserProfil
   if (Math.abs(delta) < 3) {
     return {
       id: 'baseline_stable',
+      provenance: 'modeled',
       severity: 'good',
       metric: '深睡 vs 你自己的基线',
       value: `${r1}% ≈ ${r0}%`,
@@ -367,6 +390,7 @@ export function computeTrendFinding(records: SleepRecord[], profile?: UserProfil
   const falling = delta < 0;
   return {
     id: 'baseline_change',
+    provenance: 'modeled',
     severity: falling ? 'act' : 'good',
     metric: '深睡 vs 你自己的基线',
     value: `${r0}% → ${r1}%`,
@@ -422,6 +446,7 @@ export function computeFindings(
       ]);
       out.push({
         id: 'deep_low',
+        provenance: 'modeled',
         severity: 'act',
         metric: '深睡占比',
         value: `${s.deepPct}%`,
@@ -442,6 +467,7 @@ export function computeFindings(
     } else if (s.deepPct < 18) {
       out.push({
         id: 'deep_watch',
+        provenance: 'modeled',
         severity: 'watch',
         metric: '深睡占比',
         value: `${s.deepPct}%`,
@@ -454,6 +480,7 @@ export function computeFindings(
     } else {
       out.push({
         id: 'deep_good',
+        provenance: 'modeled',
         severity: 'good',
         metric: '深睡占比',
         value: `${s.deepPct}%`,
@@ -485,6 +512,7 @@ export function computeFindings(
       ]);
       out.push({
         id: 'latency_high',
+        provenance: 'measured',
         severity: 'act',
         metric: '入睡潜伏期',
         value: `${s.medLatency} 分钟`,
@@ -501,6 +529,7 @@ export function computeFindings(
     } else if (s.medLatency > 20) {
       out.push({
         id: 'latency_watch',
+        provenance: 'measured',
         severity: 'watch',
         metric: '入睡潜伏期',
         value: `${s.medLatency} 分钟`,
@@ -513,6 +542,7 @@ export function computeFindings(
     } else {
       out.push({
         id: 'latency_good',
+        provenance: 'measured',
         severity: 'good',
         metric: '入睡潜伏期',
         value: `${s.medLatency} 分钟`,
@@ -531,6 +561,7 @@ export function computeFindings(
     if (deficit >= 60) {
       out.push({
         id: 'duration_short',
+        provenance: 'measured',
         severity: 'act',
         metric: '睡眠时长',
         value: hhmm(s.avgDurationMin),
@@ -549,6 +580,7 @@ export function computeFindings(
     } else if (deficit >= 30) {
       out.push({
         id: 'duration_watch',
+        provenance: 'measured',
         severity: 'watch',
         metric: '睡眠时长',
         value: hhmm(s.avgDurationMin),
@@ -561,6 +593,7 @@ export function computeFindings(
     } else {
       out.push({
         id: 'duration_good',
+        provenance: 'measured',
         severity: 'good',
         metric: '睡眠时长',
         value: hhmm(s.avgDurationMin),
@@ -588,6 +621,7 @@ export function computeFindings(
       ]);
       out.push({
         id: 'awake_high',
+        provenance: 'measured',
         severity: 'act',
         metric: '夜醒次数',
         value: `平均 ${s.avgWakeCount} 次`,
@@ -608,6 +642,7 @@ export function computeFindings(
       // 于是 2 次既够不上 3 次的门槛、又被当成"连续"。
       out.push({
         id: 'awake_watch',
+        provenance: 'measured',
         severity: 'watch',
         metric: '夜醒次数',
         value: `平均 ${s.avgWakeCount} 次`,
@@ -620,6 +655,7 @@ export function computeFindings(
     } else {
       out.push({
         id: 'awake_good',
+        provenance: 'measured',
         severity: 'good',
         metric: '夜醒次数',
         value: `平均 ${s.avgWakeCount} 次`,
@@ -650,6 +686,7 @@ export function computeFindings(
   if (!insufficient && s.bedtimeIQR >= 1) {
     out.push({
       id: 'irregular',
+      provenance: 'measured',
       severity: s.bedtimeIQR >= 1.5 ? 'act' : 'watch',
       metric: '就寝时间波动',
       value: `±${(s.bedtimeIQR / 2).toFixed(1)} 小时`,
@@ -665,6 +702,7 @@ export function computeFindings(
   } else if (!insufficient) {
     out.push({
       id: 'regularity_good',
+      provenance: 'measured',
       severity: 'good',
       metric: '就寝时间波动',
       value: `±${(s.bedtimeIQR / 2).toFixed(1)} 小时`,
@@ -679,12 +717,17 @@ export function computeFindings(
     });
   }
 
+  // 注意：这里必须显式断言。实测 TypeScript 7.0.2 在本项目的 tsconfig 下
+  // 不对 `trend !== null` 收窄——它的赋值检查认为 null 不可赋给 Finding，
+  // 但收窄不生效，两者行为不一致（`if (trend)`、`!== null`、三元式都不收窄，
+  // 只有 `as` / `!` 能通过）。守卫本身是完整的，断言只是补上编译器这一环。
   const trend = computeTrendFinding(records, profile);
-  if (trend) out.push(trend);
+  if (trend !== null) out.push(trend as Finding);
 
   // ── 7. 睡眠环境：不依赖数据，但是有明确共识的常识，问了就直说 ──
   out.push({
     id: 'environment',
+    provenance: 'measured',
     severity: 'good',
     metric: '卧室环境',
     value: '18–21℃',
@@ -698,6 +741,23 @@ export function computeFindings(
   });
 
   const order: Record<FindingSeverity, number> = { act: 0, watch: 1, good: 2 };
+
+  // 兜底降级必须放在**所有发现入列之后**。曾经放在中间，漏掉了后面才 push 的
+  // baseline_change（它是 modeled 且原本会是 act）——这种顺序错误不报错，
+  // 只会让一条推演结论重新变成"值得先处理"。
+  for (const f of out) {
+    if (f.provenance === 'modeled' && f.severity === 'act') f.severity = 'watch';
+  }
+
+  // 推演值不进默认清单：它只反映推演模型，不反映用户真实情况。
+  // 但保留在可路由集合里——用户明确问「深睡怎么样」时应当得到回答，
+  // 只是回答里必须讲清这是推演值。
+  if (!opts.includeOnDemand) {
+    return out
+      .filter((f) => f.provenance === 'measured')
+      .sort((a, b) => order[a.severity] - order[b.severity]);
+  }
+
   return out.sort((a, b) => order[a.severity] - order[b.severity]);
 }
 
@@ -820,7 +880,19 @@ export function routeQuestion(text: string, findings: Finding[]): RoutedAnswer {
 export function renderFinding(f: Finding, opts: { prefix?: string } = {}): string {
   const icon = f.severity === 'act' ? '⚠️' : f.severity === 'watch' ? '•' : '✓';
   const head = `${icon} **${f.headline}**  （你：${f.value} · 参照：${f.reference}）`;
-  const body = opts.prefix ? `${opts.prefix}\n\n${head}\n\n${f.detail}` : `${head}\n\n${f.detail}`;
+
+  // 推演值必须自曝来源。用户看到「深睡占比 21%」会以为这是测出来的，
+  // 而它其实是由睡眠时长按固定周期模型推算的——不说明就等于默示它是测量值。
+  const provenanceNote =
+    f.provenance === 'modeled'
+      ? `\n\n> 注意：这一项是**推演值**，不是实测。手机没有脑电电极，` +
+        `睡眠分期无法被真正测量；这个数字是根据你的就寝、起床、入睡用时按固定周期模型推算的，` +
+        `因此它主要反映睡眠时长，不反映你的真实深睡。`
+      : '';
+
+  const body = opts.prefix
+    ? `${opts.prefix}\n\n${head}\n\n${f.detail}${provenanceNote}`
+    : `${head}\n\n${f.detail}${provenanceNote}`;
   if (f.levers.length === 0) return body;
   return `${body}\n\n${f.levers.map((l, i) => `${i + 1}. ${l}`).join('\n')}`;
 }

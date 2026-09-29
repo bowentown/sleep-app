@@ -32,9 +32,11 @@ import {
   generateLocalChatReply,
   generateLocalClinicalAnalysis,
 } from '../src/utils/clinicalSleepEngine.js';
+import { generateSleepStages } from '../src/utils/sleepScore.js';
 import {
   computeFindings,
   computeSleepStats,
+  renderFinding,
   routeQuestion,
   matchBoundary,
 } from '../src/utils/sleepFindings.js';
@@ -324,7 +326,7 @@ console.log('\n══ 6c. 自我基线：样本够时用用户自己当参照系
   const recent = Array.from({ length: 7 }, (_, i) =>
     rec({ id: 'r' + i, date: `2026-09-${String(i + 15).padStart(2, '0')}`, deepSleepMinutes: 25 })
   );
-  const changed = computeFindings([...recent, ...earlier], profile);
+  const changed = computeFindings([...recent, ...earlier], profile, { includeOnDemand: true });
   const trend = changed.find((f) => f.id === 'baseline_change');
   check('样本 ≥14 晚时做自我基线对比', trend !== undefined, '没有产出趋势发现');
   check('骤降被识别为「变化」而不是「常态」', trend?.headline.includes('掉到') === true, trend?.headline);
@@ -334,7 +336,7 @@ console.log('\n══ 6c. 自我基线：样本够时用用户自己当参照系
   const chronic = Array.from({ length: 21 }, (_, i) =>
     rec({ id: 'c' + i, date: `2026-09-${String((i % 28) + 1).padStart(2, '0')}`, deepSleepMinutes: 25 })
   );
-  const stable = computeFindings(chronic, profile).find((f) => f.id === 'baseline_stable');
+  const stable = computeFindings(chronic, profile, { includeOnDemand: true }).find((f) => f.id === 'baseline_stable');
   check('长期偏低被识别为「常态」而非变化', stable !== undefined, '误判成了变化');
   check(
     '「常态」结论明确说稳定本身就是结论',
@@ -344,7 +346,7 @@ console.log('\n══ 6c. 自我基线：样本够时用用户自己当参照系
   // 样本不足时不许给基线结论——这是 HiMe 的 precondition 思路
   check(
     '样本 <14 晚时不给基线结论',
-    computeFindings(HEALTHY, profile).every((f) => !f.id.startsWith('baseline_')),
+    computeFindings(HEALTHY, profile, { includeOnDemand: true }).every((f) => !f.id.startsWith('baseline_')),
     '样本不足却下了基线结论'
   );
 }
@@ -388,6 +390,133 @@ console.log('\n══ 6d. 报警必须配动作，文案不许拼接叠字 ═�
     '每条发现四要素齐全（指标/值/参照/结论/解释）',
     incomplete.length === 0,
     incomplete.map((f) => f.id).join('、')
+  );
+}
+
+console.log('\n══ 6e. 数据来源：推演值不得冒充测量值 ══');
+{
+  // ── 为什么这一节必须存在 ──
+  // 手机没有脑电电极。yasa / U-Sleep / TinySleepNet 这一整类睡眠分期模型
+  // 输入都是 EEG（见 docs 里的端侧调研），所以「深睡分钟数」在物理上测不到。
+  // 本项目的做法是 generateSleepStages 按固定周期模型（前两周期深睡 34%、之后 12%）
+  // 从就寝/起床/入睡用时/夜醒次数推算出分期。
+  //
+  // 下面这两条断言把「它是推演值」钉死成事实：一旦有人把深睡当测量量拿去做临床判断，
+  // 或者改了周期模型让深睡占比不再随时长变化，测试会立刻失败。
+  {
+    const pcts: number[] = [];
+    const durs: number[] = [];
+    for (const wake of ['04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00']) {
+      for (const lat of [5, 15, 30, 60]) {
+        const g = generateSleepStages('23:00', wake, lat, 1);
+        const tst = g.deepMinutes + g.lightMinutes + g.remMinutes;
+        if (tst <= 0) continue;
+        durs.push(tst);
+        pcts.push((g.deepMinutes / tst) * 100);
+      }
+    }
+    const n = pcts.length;
+    const mx = durs.reduce((a, b) => a + b, 0) / n;
+    const my = pcts.reduce((a, b) => a + b, 0) / n;
+    const cov = durs.reduce((s2, d, i) => s2 + (d - mx) * (pcts[i] - my), 0) / n;
+    const sx = Math.sqrt(durs.reduce((s2, d) => s2 + (d - mx) ** 2, 0) / n);
+    const sy = Math.sqrt(pcts.reduce((s2, y) => s2 + (y - my) ** 2, 0) / n);
+    const r = cov / (sx * sy);
+
+    check(
+      '深睡占比与睡眠时长强相关（证明它是推演值而非测量值）',
+      r < -0.6,
+      `实测 r = ${r.toFixed(3)}；若接近 0 说明模型改了，需重新评估来源标记`
+    );
+    // 最反直觉、也最能说明问题的一点：睡得越少，这个指标越好看
+    const shortPct = pcts.filter((_, i) => durs[i] <= 300);
+    const longPct = pcts.filter((_, i) => durs[i] >= 540);
+    if (shortPct.length && longPct.length) {
+      const a = shortPct.reduce((x, y) => x + y, 0) / shortPct.length;
+      const b = longPct.reduce((x, y) => x + y, 0) / longPct.length;
+      check(
+        '「睡得越少深睡占比越高」这一反直觉特性仍成立（来源标记的前提）',
+        a > b,
+        `短睡 ${a.toFixed(1)}% vs 长睡 ${b.toFixed(1)}%`
+      );
+    }
+  }
+
+  const all = computeFindings(DEMO, profile, { includeOnDemand: true });
+  const modeled = all.filter((f) => f.provenance === 'modeled');
+
+  check('每条发现都有来源标记', all.every((f) => f.provenance !== undefined));
+  check(
+    '深睡类与自我基线类被标为推演值',
+    modeled.length > 0 && modeled.every((f) => f.id.startsWith('deep') || f.id.startsWith('baseline')),
+    `实际：${modeled.map((f) => f.id).join('、')}`
+  );
+  check(
+    '就寝时刻/时长/夜醒/入睡用时/心情类标为实测',
+    all
+      .filter((f) => ['duration_good', 'duration_watch', 'duration_short', 'latency_good', 'awake_good', 'awake_watch', 'awake_high', 'regularity_good', 'irregular'].includes(f.id))
+      .every((f) => f.provenance === 'measured'),
+    all.filter((f) => f.provenance !== 'measured').map((f) => f.id).join('、')
+  );
+
+  // 最关键的一条：推演值不得判为 act。
+  // act 会驱动首页「有 N 项值得先处理」和具体建议，
+  // 而对一个由睡眠时长推算出来的数字提建议，等于对模型下诊断。
+  const dirty = all.filter((f) => f.provenance === 'modeled' && f.severity === 'act');
+  check(
+    '推演值一律不得判为 act（act 会触发「值得先处理」）',
+    dirty.length === 0,
+    `这些漏了：${dirty.map((f) => f.id).join('、')}`
+  );
+
+  // 反向验证：自我基线那条原本会是 act，必须被降级
+  const earlier = Array.from({ length: 14 }, (_, i) =>
+    rec({ id: 'e' + i, date: `2026-09-${String(i + 1).padStart(2, '0')}`, deepSleepMinutes: 95 })
+  );
+  const recent = Array.from({ length: 7 }, (_, i) =>
+    rec({ id: 'r' + i, date: `2026-09-${String(i + 15).padStart(2, '0')}`, deepSleepMinutes: 25 })
+  );
+  const trendCase = computeFindings([...recent, ...earlier], profile, { includeOnDemand: true });
+  const trend = trendCase.find((f) => f.id === 'baseline_change');
+  check('深睡骤降能产出自我基线发现', trend !== undefined, '趋势发现没生成');
+  check(
+    '深睡骤降这条被从 act 降为 watch（否则会冒充可处理问题）',
+    trend?.provenance === 'modeled' && trend?.severity !== 'act',
+    `实际 ${trend?.provenance} / ${trend?.severity}`
+  );
+  // 降级必须覆盖到「最后才入列」的那条，中间位置会漏
+  check(
+    '降级覆盖到所有入列顺序（含最后 push 的趋势发现）',
+    trendCase.filter((f) => f.provenance === 'modeled' && f.severity === 'act').length === 0
+  );
+
+  const def = computeFindings(DEMO, profile);
+  check(
+    '推演值不进默认清单（打开面板就看到的那些）',
+    def.every((f) => f.provenance === 'measured'),
+    def.filter((f) => f.provenance !== 'measured').map((f) => f.id).join('、')
+  );
+  check(
+    '但推演值仍可被路由（用户问了要给回答）',
+    modeled.length > 0,
+    '全被过滤掉了，用户问深睡会答不出来'
+  );
+
+  // 展示时必须自曝来源，否则「深睡占比 22%」会被默认为测量值
+  const renderedModeled = renderFinding(modeled[0]);
+  check(
+    '推演值被渲染时明确说明不是实测',
+    renderedModeled.includes('推演值') && renderedModeled.includes('不是实测'),
+    renderedModeled.slice(-120)
+  );
+  const measured = all.find((f) => f.provenance === 'measured')!;
+  check('实测值不会被加上推演免责声明', !renderFinding(measured).includes('推演值'));
+
+  const answer = generateLocalChatReply('我深睡怎么样', DEMO[0], DEMO, profile);
+  check(
+    '问深睡时，回答里带推演说明',
+    answer.includes('推演值'),
+    answer.slice(0, 100)
   );
 }
 

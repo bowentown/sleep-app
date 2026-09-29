@@ -223,12 +223,18 @@ const relOf = (f: string) => f.replace(/\\/g, '/');
  * 结论：**凡是要在源码里搜模式的检查，先剥注释。** 所以做成 helper，
  * 而不是每次记得手动处理。
  */
+/**
+ * 剥掉注释后再查内容。
+ *
+ * ★ 这里原来只去「整行 //」注释，**不去行尾注释**，于是
+ * `const a = 1; // 由**实测**决定` 里的星号会被当成用户可见文案。
+ * 这是本仓库第 9 次栽在同一个根因上（verify-wiring 里修过一次，换了个文件又出现）。
+ * 所以改用与 verify-wiring 相同的一套正则：块注释 + 行尾注释，只放过 `://`。
+ */
 function stripComments(src: string): string {
   return src
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((l) => !l.trim().startsWith('//'))
-    .join('\n');
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/gm, '$1');
 }
 
 // ---------------------------------------------------------------- 执行
@@ -333,6 +339,53 @@ ALLOW.forEach((a, i) => {
 });
 
 // ---------------------------------------------------------------- 汇总
+// ─────────────────────────────────────────────────────────────
+// 规则 9：JSX 不解析 Markdown —— 用户可见的 `**粗体**` 必须走 renderEmphasis
+//
+// 起因：我在设置页的桌宠卡片里写了「心情只由你的**实测**评分决定」，
+// 结果界面原样显示了两个星号。项目里其实**早有** renderEmphasis 专门解决它
+// （richText.tsx 的注释写着"79 处文案写了 Markdown 粗体，但 JSX 不解析"），
+// 我既没用它，也没有任何护栏拦着。
+//
+// 判据刻意收窄，避免误报：
+//   • 只看 .tsx（.ts 里的 `**` 是给 renderEmphasis 准备的字符串，渲染在别处）
+//   • 先剥注释（`**` 出现在注释里无害）
+//   • 该文件若已调用 renderEmphasis 就整体放过（它把星号交给谁也看得见）
+//   • 豁免必须写明理由，和 RULES 同一套（ALLOW）
+const emphasisHits: string[] = [];
+for (const f of files) {
+  if (!f.endsWith('.tsx')) continue;
+  const src = stripComments(readFileSync(f, 'utf8'));
+  if (src.includes('renderEmphasis')) continue;
+  const lines = src.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    // 只认成对的 `**...**`，落单的星号（乘法、指针注释残留）不算
+    if (/\*\*[^*]+\*\*/.test(lines[i]!)) {
+      emphasisHits.push(`${f}:${i + 1} → ${lines[i]!.trim().slice(0, 70)}`);
+    }
+  }
+}
+check('自检·stripComments 去掉整行注释', !stripComments('// 由**实测**决定\nconst a = 1;').includes('实测'));
+check('自检·stripComments 去掉行尾注释', !stripComments('const a = 1; // 由**实测**决定').includes('实测'));
+check('自检·stripComments 保留 ://', stripComments('const u = "https://x.dev";').includes('://'));
+
+check('用户可见的 Markdown 粗体都走 renderEmphasis',
+  emphasisHits.length === 0,
+  emphasisHits.length ? `原样显示星号 ${emphasisHits.length} 处:\n     ${emphasisHits.join('\n     ')}` : '');
+
+// 自检：这条规则本身得能在坏输入上变红
+const EMPHASIS_SELFTEST = [
+  { src: 'const a = 1;\n<p>心情由你的**实测**评分决定</p>', expect: true },
+  { src: 'const a = 1; // 由**实测**决定\n<p>普通文案</p>', expect: false },
+  { src: 'import { renderEmphasis } from "./richText";\n<p>由**实测**决定</p>', expect: false },
+  { src: '<p>a * b * c</p>', expect: false },
+];
+for (const [i, c] of EMPHASIS_SELFTEST.entries()) {
+  const hit = !c.src.includes('renderEmphasis') &&
+    /\*\*[^*]+\*\*/.test(stripComments(c.src));
+  check(`自检·粗体规则样例 ${i + 1}`, hit === c.expect, `期望 ${c.expect} 得到 ${hit}`);
+}
+
 console.log(`\n${'='.repeat(60)}`);
 if (failures.length === 0) {
   console.log(`✅ 文案护栏全部通过（${pass} 项断言，${files.length} 个文件 / ${totalStrings} 条中文串 / ${totalMatches} 处规则匹配）`);

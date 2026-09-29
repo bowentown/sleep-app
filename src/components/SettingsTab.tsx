@@ -15,6 +15,7 @@ import { AlarmManager } from './AlarmManager';
 import { CustomAISettingsModal } from './CustomAISettingsModal';
 import { PWAExportModal } from './PWAExportModal';
 import { APP_THEMES, ThemeConfig } from '../utils/themeStyles';
+import { renderEmphasis } from '../utils/richText';
 import {
   isPetNative,
   isPetEnabled,
@@ -546,7 +547,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <p className="text-[11px] text-slate-500 leading-relaxed">
             拖动可挪位置，松手自动吸附到屏幕边缘。点她弹「💬 消息 / 👁 护眼」两个按钮；
             消息看她头顶冒傲娇播报，护眼就地开关滤镜。她的表情会跟着时段走
-            （清晨刚醒 / 午后打盹 / 深夜困倦），心情只由你的**实测**评分决定，推演指标不参与。
+            （清晨刚醒 / 午后打盹 / 深夜困倦），心情只由你的
+            {renderEmphasis('**实测**评分决定')}
+            ，推演指标不参与。
           </p>
         </div>
 

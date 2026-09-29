@@ -225,7 +225,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
 
         {/* Provider Selection Tabs - 3-Tier Fallback Chain */}
         <div className="mt-3 space-y-3">
-          <div className="grid grid-cols-4 gap-1.5 text-xs">
+          <div className="grid grid-cols-4 gap-2 text-xs">
             <button
               type="button"
               onClick={() => setProvider('deepseek')}
@@ -325,7 +325,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
 
               {/* 上次崩溃警告 */}
               {llmCrashNote && provider === 'local_llm' && (
-                <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/60 text-[11px] text-amber-200 leading-relaxed">
+                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/60 text-[11px] text-amber-200 leading-relaxed">
                   ⚠️ {llmCrashNote}
                 </div>
               )}
@@ -333,7 +333,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
               {/* 设备支持性 */}
               {llmSupport && (
                 <div
-                  className={`p-2.5 rounded-xl border text-[11px] leading-relaxed ${
+                  className={`p-3 rounded-xl border text-[11px] leading-relaxed ${
                     llmSupport.supported
                       ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-300'
                       : 'bg-amber-950/30 border-amber-800/60 text-amber-300/90'
@@ -350,14 +350,14 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                 </div>
               )}
               {!llmSupport && !llmError && (
-                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 text-[11px] text-slate-400">
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-700 text-[11px] text-slate-400">
                   正在检测设备支持性...
                 </div>
               )}
 
               {/* 错误信息 */}
               {llmError && (
-                <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-[11px] text-rose-200 leading-relaxed">
+                <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 text-[11px] text-rose-200 leading-relaxed">
                   ❌ {llmError}
                 </div>
               )}
@@ -374,7 +374,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                       setHfToken(e.target.value);
                     }}
                     placeholder="hf_xxxxxxxxxxxx"
-                    className="w-full bg-[#0a0f1d] border border-slate-600 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                    className="w-full bg-[#0a0f1d] border border-slate-600 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-400"
                   />
                   <p className="text-xs text-slate-500 leading-relaxed">
                     Gemma 为门控模型：在 huggingface.co 登录 → 打开 litert-community/gemma-3-1b-it →
@@ -384,7 +384,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
               )}
 
               {/* 下载管理 */}
-              <div className={`p-3 rounded-xl bg-[#0a0f1d] border border-slate-700 space-y-2.5`}>
+              <div className={`p-3 rounded-xl bg-[#0a0f1d] border border-slate-700 space-y-2`}>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="font-bold text-white">模型文件（首次需下载，建议 Wi-Fi）</span>
                   {llmCache?.cached && (
@@ -393,9 +393,9 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                 </div>
 
                 {llmProgress !== null ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="flex justify-between text-[11px] text-slate-300">
-                      <span className="flex items-center gap-1.5">
+                      <span className="flex items-center gap-2">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
                         正在下载端侧模型...
                       </span>
@@ -416,7 +416,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={handleDeleteLlm}
-                    className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-rose-300 font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-rose-300 font-bold flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>删除模型，释放存储空间</span>
@@ -426,7 +426,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                     type="button"
                     onClick={handleDownloadLlm}
                     disabled={llmSupport !== null && !llmSupport.supported}
-                    className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer"
+                    className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold flex items-center justify-center gap-2 shadow cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     <span>下载端侧模型（约 462 MB）</span>
@@ -434,7 +434,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                 )}
               </div>
 
-              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs text-slate-400 leading-relaxed">
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-700 text-xs text-slate-400 leading-relaxed">
                 ⚡ 性能说明：本引擎在 WebView 内以 WASM 单线程运行（未开跨域隔离），生成速度约每秒几个字，适合睡前从容对话；
                 首次对话加载模型需数秒。模型文件缓存在本机私有存储，卸载应用或删除模型即彻底清除。
               </div>
@@ -482,7 +482,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setDeepseekModel('deepseek-flash')}
-                    className={`py-1.5 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                       deepseekModel === 'deepseek-flash'
                         ? 'bg-indigo-600 border-white text-white'
                         : 'bg-[#0a0f1d] border-slate-700 text-slate-300'
@@ -494,7 +494,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setDeepseekModel('deepseek-pro')}
-                    className={`py-1.5 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                       deepseekModel === 'deepseek-pro'
                         ? 'bg-indigo-600 border-white text-white'
                         : 'bg-[#0a0f1d] border-slate-700 text-slate-300'
@@ -531,7 +531,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
 
           {/* 3. Custom OpenAI Form */}
           {provider === 'custom_openai' && (
-            <div className={`p-4 rounded-2xl ${theme.cardInnerBg} border border-slate-700 space-y-2.5 text-xs`}>
+            <div className={`p-4 rounded-2xl ${theme.cardInnerBg} border border-slate-700 space-y-2 text-xs`}>
               <div>
                 <label className="text-xs text-white font-bold block mb-1">接口地址 (Base URL)</label>
                 <input
@@ -588,8 +588,8 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
           )}
 
           {/* AI Persona Prompt */}
-          <div className={`p-3 rounded-2xl ${theme.cardInnerBg} border border-slate-700/60 space-y-1.5`}>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-300">
+          <div className={`p-3 rounded-2xl ${theme.cardInnerBg} border border-slate-700/60 space-y-2`}>
+            <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
               <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
               <span>顾问角色设定 (System Prompt)</span>
             </div>
@@ -598,12 +598,12 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
               value={systemPersona}
               onChange={(e) => setSystemPersona(e.target.value)}
               placeholder="设定顾问身份与风格..."
-              className="w-full bg-[#0a0f1d] border border-slate-600 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 leading-relaxed"
+              className="w-full bg-[#0a0f1d] border border-slate-600 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 leading-relaxed"
             />
           </div>
 
           {/* Privacy & Key Security Notice */}
-          <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400 leading-relaxed">
+          <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400 leading-relaxed">
             🛡️ **存储与安全提示**：自配的 API Key 以明文形式保存在您当前设备浏览器的 LocalStorage 中，不会上传存储至我们的服务器；请勿在他人共用的公用设备上保存敏感 Key。
           </div>
         </div>
@@ -623,14 +623,14 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs cursor-pointer"
             >
               取消
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer shadow"
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer shadow"
             >
               保存
             </button>

@@ -86,8 +86,8 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
         <div className="w-12 h-1.5 bg-slate-500 rounded-full mx-auto mb-4 sm:hidden" />
 
         {/* Header */}
-        <div className="flex items-center justify-between pb-3.5 border-b border-slate-700/60">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
+          <div className="flex items-center gap-2">
             <div className={`w-9 h-9 rounded-xl ${innerBg} text-indigo-400 flex items-center justify-center border ${innerBorder}`}>
               <Moon className="w-5 h-5" />
             </div>
@@ -110,19 +110,19 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
         <div className="py-4 space-y-4">
           {/* Date Selector */}
           <div>
-            <label className="block text-xs font-bold text-white mb-1.5">记录日期</label>
+            <label className="block text-xs font-bold text-white mb-1">记录日期</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={`w-full ${innerBg} border ${innerBorder} rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-400 font-mono shadow-inner cursor-pointer`}
+              className={`w-full ${innerBg} border ${innerBorder} rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-400 font-mono shadow-inner cursor-pointer`}
             />
           </div>
 
           {/* Times */}
           <div className="grid grid-cols-2 gap-3">
-            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3.5 shadow-inner`}>
-              <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 mb-1">
+            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3 shadow-inner`}>
+              <span className="text-xs font-bold text-slate-200 flex items-center gap-2 mb-1">
                 <Clock className="w-3.5 h-3.5 text-indigo-400" />
                 入睡时间
               </span>
@@ -134,8 +134,8 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
               />
             </div>
 
-            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3.5 shadow-inner`}>
-              <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 mb-1">
+            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3 shadow-inner`}>
+              <span className="text-xs font-bold text-slate-200 flex items-center gap-2 mb-1">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 醒来时间
               </span>
@@ -150,8 +150,8 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
 
           {/* Latency & Wake count */}
           <div className="grid grid-cols-2 gap-3">
-            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3.5 shadow-inner`}>
-              <div className="flex justify-between text-xs text-slate-200 mb-1.5 font-bold">
+            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3 shadow-inner`}>
+              <div className="flex justify-between text-xs text-slate-200 mb-1 font-bold">
                 <span>入睡耗时</span>
                 <span className="text-indigo-300 font-mono">{latencyMinutes} 分钟</span>
               </div>
@@ -166,8 +166,8 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
               />
             </div>
 
-            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3.5 shadow-inner`}>
-              <div className="flex justify-between text-xs text-slate-200 mb-1.5 font-bold">
+            <div className={`${innerBg} border ${innerBorder} rounded-2xl p-3 shadow-inner`}>
+              <div className="flex justify-between text-xs text-slate-200 mb-1 font-bold">
                 <span>夜醒次数</span>
                 <span className="text-amber-300 font-mono">{wakeCount} 次</span>
               </div>
@@ -184,7 +184,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
 
           {/* Morning Mood */}
           <div>
-            <label className="block text-xs font-bold text-white mb-1.5">晨起状态感受</label>
+            <label className="block text-xs font-bold text-white mb-1">晨起状态感受</label>
             <div className="grid grid-cols-4 gap-2">
               {(
                 [
@@ -198,7 +198,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
                   type="button"
                   key={m.key}
                   onClick={() => setSelectedMood(m.key)}
-                  className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                  className={`p-3 rounded-2xl border flex flex-col items-center gap-2 text-xs transition-all cursor-pointer ${
                     selectedMood === m.key
                       ? `${accentBg} border-white text-white font-black shadow-lg scale-[1.02]`
                       : `${innerBg} ${innerBorder} text-slate-200 hover:border-slate-400`
@@ -213,7 +213,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
 
           {/* Pre-sleep Habits tags */}
           <div>
-            <label className="block text-xs font-bold text-white mb-1.5">昨晚睡前行为习惯</label>
+            <label className="block text-xs font-bold text-white mb-1">昨晚睡前行为习惯</label>
             <div className="flex flex-wrap gap-2">
               {HABIT_OPTIONS.map((h) => {
                 const active = selectedHabits.includes(h.id);
@@ -222,7 +222,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
                     type="button"
                     key={h.id}
                     onClick={() => toggleHabit(h.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                       active
                         ? `${accentBg} text-white border border-white shadow-md`
                         : `${innerBg} text-slate-200 border ${innerBorder} hover:border-slate-400`
@@ -238,7 +238,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
 
           {/* Dream diary notes */}
           <div>
-            <label className="block text-xs font-bold text-white mb-1.5">梦境与醒来体验 (选填)</label>
+            <label className="block text-xs font-bold text-white mb-1">梦境与醒来体验 (选填)</label>
             <textarea
               value={dreamNotes}
               onChange={(e) => setDreamNotes(e.target.value)}

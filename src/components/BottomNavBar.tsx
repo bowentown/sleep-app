@@ -37,7 +37,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab, onChangeT
               className="flex flex-col items-center justify-center min-h-[50px] py-1 px-2 rounded-xl transition-all group focus:outline-none cursor-pointer"
             >
               <div
-                className={`p-1.5 rounded-xl transition-all flex items-center justify-center ${
+                className={`p-2 rounded-xl transition-all flex items-center justify-center ${
                   isActive
                     ? `${theme.navActiveText} ${theme.navActiveBg} shadow-sm`
                     : `${theme.navInactiveText} group-hover:text-white`

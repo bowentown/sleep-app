@@ -80,6 +80,17 @@ export function getBedtimeStatus(now: Date, targetBedtime: string): BedtimeStatu
     };
   }
 
+  // 正好到点。原来 diff === 0 会掉进下面的 overdue 分支，
+  // 渲染成「已超过目标就寝 0分钟」——明明一分钟都没超过。
+  if (diff === 0) {
+    return {
+      tone: 'windDown',
+      headline: '到目标就寝时间了',
+      detail: '现在就放下手机',
+      minutesToTarget: 0,
+    };
+  }
+
   // 睡前窗口内：倒计时
   if (diff > 0) {
     return {
@@ -211,6 +222,10 @@ export function buildMorningSummary(
   // 复述一遍会让这一行变长一倍，读者还要在两组相同的数字之间对照。
   // 一句话总结的价值在于「把数字翻译成判断」，以及说出表格里没有的东西：
   // 与目标的差值、本周极值。
+  // 差值与极值都用最紧凑的写法，目标是让这一行在 390px 宽的手机上**不折行**。
+  // 实测「睡得不错 · 比目标少睡 24分钟、晚睡 15分钟 · 本周最好的一晚」需要约 363px，
+  // 而卡内可用宽约 326px，会断成两行。把「分钟」压成「分」（两处共省约 28px）、
+  // 「本周最好的一晚」压成「本周最佳」（省约 42px）之后才放得下。
   const parts: string[] = [];
 
   // 总睡眠与目标的差。低于 15 分钟不提，避免把噪声当结论。
@@ -218,8 +233,8 @@ export function buildMorningSummary(
   if (Math.abs(deltaDuration) >= 15) {
     parts.push(
       deltaDuration > 0
-        ? `多睡 ${formatDurationChinese(deltaDuration)}`
-        : `少睡 ${formatDurationChinese(-deltaDuration)}`
+        ? `多睡 ${Math.round(deltaDuration)}分`
+        : `少睡 ${Math.round(-deltaDuration)}分`
     );
   }
 
@@ -231,28 +246,39 @@ export function buildMorningSummary(
     if (Math.abs(deltaBed) >= 15) {
       parts.push(
         deltaBed < 0
-          ? `早睡 ${formatDurationChinese(-deltaBed)}`
-          : `晚睡 ${formatDurationChinese(deltaBed)}`
+          ? `早睡 ${Math.round(-deltaBed)}分`
+          : `晚睡 ${Math.round(deltaBed)}分`
       );
-    }
-  }
-
-  // 本周极值：只有天数 ≥3 时「最好/最差的一晚」才有意义，
-  // 且全部同分时不说，否则几天都会自称「最好的一晚」。
-  let superlative = '';
-  if (weekRecords.length >= 3) {
-    const scores = weekRecords.map((r) => r.sleepScore);
-    const max = Math.max(...scores);
-    const min = Math.min(...scores);
-    if (max !== min) {
-      if (record.sleepScore === max) superlative = ' · 本周最好的一晚';
-      else if (record.sleepScore === min) superlative = ' · 本周最差的一晚';
     }
   }
 
   // 「比目标」只写一次，两个差值用顿号并列：比目标少睡 24分钟、晚睡 15分钟。
   // 每个差值各带一次「比目标」会显得啰嗦，而去掉它又不知道在跟什么比。
-  return `${opener}${parts.length ? ' · 比目标' + parts.join('、') : ''}${superlative}`;
+  //
+  // 「本周最佳/最差」不在这里拼——它讲的是**这一周**，属于日期那一行的信息，
+  // 由 describeWeekExtreme 单独给出，在卡片头部渲染成小徽标。
+  // 挤在这一行里实测要 315px，而可用宽只有 326px，余量 11px，换个字体就折行。
+  return `${opener}${parts.length ? ' · 比目标' + parts.join('、') : ''}`;
+}
+
+/**
+ * 这一晚在本周的位置：「本周最佳」/「本周最差」/ null。
+ *
+ * 只在本周记录 ≥3 天、且分数不是全部相同时才评价——
+ * 只有两晚时「最佳」没有信息量，全部同分时每天都会自称「最佳」。
+ */
+export function describeWeekExtreme(
+  record: SleepRecord,
+  weekRecords: SleepRecord[]
+): '本周最佳' | '本周最差' | null {
+  if (weekRecords.length < 3) return null;
+  const scores = weekRecords.map((r) => r.sleepScore);
+  const max = Math.max(...scores);
+  const min = Math.min(...scores);
+  if (max === min) return null;
+  if (record.sleepScore === max) return '本周最佳';
+  if (record.sleepScore === min) return '本周最差';
+  return null;
 }
 
 export interface TargetTimeline {

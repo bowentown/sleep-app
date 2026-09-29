@@ -111,13 +111,13 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
             {record.bedtime} - {record.wakeTime}
           </span>
         </div>
-        <span className="font-mono text-emerald-300 bg-emerald-950 px-2.5 py-0.5 rounded-lg border border-emerald-600 font-bold">
+        <span className="font-mono text-emerald-300 bg-emerald-950 px-3 py-0.5 rounded-lg border border-emerald-600 font-bold">
           综合效率 {record.sleepEfficiency}%
         </span>
       </div>
 
       {/* SVG Timeline Chart */}
-      <div className={`relative w-full h-36 select-none ${innerBg} rounded-2xl p-2.5 border ${innerBorder} shadow-inner`}>
+      <div className={`relative w-full h-36 select-none ${innerBg} rounded-2xl p-3 border ${innerBorder} shadow-inner`}>
         {/* Stage Y-axis labels */}
         <div className={`absolute left-2.5 top-2.5 bottom-6 flex flex-col justify-between text-xs ${textMuted} font-semibold pointer-events-none z-10`}>
           <span className="text-rose-400">清醒</span>

@@ -248,6 +248,66 @@ for (const [mode, cfg] of Object.entries(APP_THEMES)) {
     `发现 ${offenders.length} 处：\n     ${offenders.slice(0, 12).join('\n     ')}`);
 }
 
+// ============ 间距规范：4px 网格，禁止半档 ============
+// 起因：间距审计发现垂直节奏有 **8 档**、以 2px 为步长
+// （space-y-0.5 / 1.5 / 2.5 / 3.5 与 1 / 2 / 3 / 4 并存），padding 更是 27 档，
+// 含 p-2.5 / p-3.5 / px-1.5 / px-2.5 / px-3.5 / py-1.5 / py-2.5 / py-3.5。
+//
+// **2px 的差别低于感知阈值**——读者看不出 10px 与 12px 的区别，
+// 所以这些半档传达不了任何层级，只是让「这里该留多少空」变成每次都要重新猜的事。
+// 统一到 4px 网格之后，档位从 8 档降到 6 档，每一档的用法都有据可依。
+//
+// 唯一保留的半档是 **0.5（2px）**：它是「贴边微调」档，图标与文字基线对齐、
+// 徽标内边距这类地方确实需要 2px，并到 4px 反而会错位。
+//
+// 注意：不检查 top/left/right/bottom 这类**绝对定位偏移**。定位是往像素级
+// 对齐装饰元素（如指示点），那里 2px 是有意义的，不属于布局节奏。
+// 靠 (?<![\w-]) 的后顾断言排除——top-3.5 里的 p 前面是 o，不会误判。
+{
+  const PROPS = ['space-y', 'space-x', 'gap-x', 'gap-y', 'gap',
+    'p', 'px', 'py', 'pt', 'pb', 'pl', 'pr', 'm', 'mx', 'my', 'mt', 'mb', 'ml', 'mr'];
+  const SPACING_RE = new RegExp(
+    `(?<![\\w-])(${PROPS.join('|')})-(1\\.5|2\\.5|3\\.5|4\\.5)(?![\\w.-])`, 'g');
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const e of readdirSync(dir)) {
+      const full = join(dir, e);
+      if (statSync(full).isDirectory()) out.push(...walk(full));
+      else if (full.endsWith('.tsx') || full.endsWith('.ts')) out.push(full);
+    }
+    return out;
+  };
+
+  const offenders: string[] = [];
+  const tiers = new Set<string>();
+  const ALL_TIERS_RE = new RegExp(
+    `(?<![\\w-])(?:${PROPS.join('|')})-(\\d+(?:\\.\\d+)?)(?![\\w.-])`, 'g');
+  for (const file of walk(join(root, 'src'))) {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      for (const m of line.matchAll(SPACING_RE)) {
+        offenders.push(`${file.replace(root + '/', '')}:${i + 1} → ${m[0]}`);
+      }
+      for (const m of line.matchAll(ALL_TIERS_RE)) {
+        const px = parseFloat(m[1]) * 4;
+        if (px % 4 === 0 || px === 2) tiers.add(m[1]);
+      }
+    });
+  }
+  check('间距没有半档（1.5/2.5/3.5/4.5）', offenders.length === 0,
+    `发现 ${offenders.length} 处：\n     ${offenders.slice(0, 12).join('\n     ')}`);
+  // 真正要守的不变式是「每一档都在 4px 网格上」，而不是档位个数本身。
+  // 个数只做个膨胀预警：档位一多，层级就失效。
+  const offGrid = [...tiers].filter((t) => {
+    const px = parseFloat(t) * 4;
+    return px % 4 !== 0 && px !== 2; // 2px 是刻意保留的贴边微调档
+  });
+  check('所有间距档位都在 4px 网格上', offGrid.length === 0,
+    `偏离网格：${offGrid.map((t) => `${t}(${parseFloat(t) * 4}px)`).join(', ')}`);
+  check('间距档位没有膨胀（≤ 12 档）', tiers.size <= 12,
+    `实际 ${tiers.size} 档：${[...tiers].sort((a, b) => parseFloat(a) - parseFloat(b)).join(', ')}`);
+}
+
 console.log(`\n${'='.repeat(60)}`);
 if (failures.length === 0) {
   console.log(`✅ 主题颜色类全部可用（${pass} 项）`);

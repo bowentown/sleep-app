@@ -241,7 +241,7 @@ export const App: React.FC = () => {
         ))}
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-2xl bg-indigo-600 text-white text-xs font-black shadow-2xl flex items-center gap-2.5 animate-bounce border border-indigo-400">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-2xl bg-indigo-600 text-white text-xs font-black shadow-2xl flex items-center gap-2 animate-bounce border border-indigo-400">
           <CheckCircle2 className="w-5 h-5 text-indigo-200" />
           <span>{toastMessage}</span>
         </div>
@@ -250,8 +250,8 @@ export const App: React.FC = () => {
       {/* Main Content Area: Natural Vertical Page Scroll (Header flows with content) */}
       <div className="w-full flex-1 max-w-lg mx-auto flex flex-col">
         {/* Scrollable Mobile Header */}
-        <header className={`px-5 pt-5 pb-3.5 flex items-center justify-between border-b ${currentTheme.cardBorder} shrink-0`}>
-          <div className="flex items-center gap-2.5">
+        <header className={`px-5 pt-5 pb-3 flex items-center justify-between border-b ${currentTheme.cardBorder} shrink-0`}>
+          <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
               <Moon className="w-5 h-5 fill-white/40" />
             </div>
@@ -261,7 +261,7 @@ export const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className={`text-xs ${currentTheme.textPrimary} font-bold ${currentTheme.cardBg} px-3.5 py-1.5 rounded-full border ${currentTheme.cardBorder} shadow-md`}>
+            <span className={`text-xs ${currentTheme.textPrimary} font-bold ${currentTheme.cardBg} px-3 py-2 rounded-full border ${currentTheme.cardBorder} shadow-md`}>
               {formatHeaderDate(new Date())}
             </span>
           </div>
@@ -278,7 +278,6 @@ export const App: React.FC = () => {
               userProfile={userProfile}
               onOpenActiveSleep={() => setIsActiveSleepOpen(true)}
               onOpenManualLog={() => setIsManualLogOpen(true)}
-              onNavigateToCoach={() => setActiveTab('coach')}
               onSaveRecord={handleSaveManualRecord}
               theme={currentTheme}
             />

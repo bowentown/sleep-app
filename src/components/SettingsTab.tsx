@@ -159,9 +159,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   return (
     <div className={`space-y-4 ${theme.textPrimary}`}>
       {/* 1. Theme Color Palette Section */}
-      <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3.5`}>
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-700/60">
-          <div className="flex items-center gap-2.5">
+      <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3`}>
+        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
+          <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-xl ${theme.cardInnerBg} text-indigo-400 flex items-center justify-center border ${theme.cardBorder}`}>
               <Palette className="w-4 h-4" />
             </div>
@@ -174,7 +174,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
           {Object.values(APP_THEMES).map((t) => {
             const isSelected = (userProfile.themeColor || 'midnight') === t.id;
             return (
@@ -185,14 +185,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   onUpdateProfile({ themeColor: t.id as any });
                   switchLauncherIcon(t.id);
                 }}
-                className={`p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                className={`p-3 rounded-2xl border text-left transition-all relative cursor-pointer ${
                   isSelected
                     ? `border-indigo-400 ${theme.cardInnerBg} shadow-lg ring-1 ring-indigo-400/50`
                     : `${theme.cardInnerBg} border-slate-700/70 hover:border-slate-500`
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <span className={`w-4 h-4 rounded-full ${t.pageBg} border-2 border-slate-400 shadow-sm flex items-center justify-center`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />
                     </span>
@@ -224,7 +224,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       {/* 3. AI Model Selector Entry */}
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3`}>
         <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-violet-600/30 text-violet-300 flex items-center justify-center border border-violet-400">
               <Sliders className="w-4 h-4" />
             </div>
@@ -261,7 +261,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       {/* 4. Schedule Target — 三字段联动编辑器：改其一，其余自动推算 */}
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-4`}>
-        <div className="flex items-center gap-2.5 pb-3 border-b border-slate-700/60">
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-700/60">
           <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center border border-amber-400">
             <Clock className="w-4 h-4" />
           </div>
@@ -271,7 +271,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3.5 shadow-inner`}>
+          <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3 shadow-inner`}>
             <span className="text-xs font-bold text-slate-200 block mb-1">目标就寝</span>
             <input
               type="time"
@@ -286,7 +286,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             />
           </div>
 
-          <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3.5 shadow-inner`}>
+          <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3 shadow-inner`}>
             <span className="text-xs font-bold text-slate-200 block mb-1">目标醒来</span>
             <input
               type="time"
@@ -301,7 +301,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
         </div>
 
-        <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3.5 shadow-inner space-y-2`}>
+        <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3 shadow-inner space-y-2`}>
           <div className="flex justify-between text-xs font-bold">
             <span className="text-slate-200">目标睡眠时长</span>
             <span className="text-indigo-400 font-mono text-sm">{userProfile.targetDurationHours} 小时</span>
@@ -324,7 +324,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </div>
 
         {/* 实时摘要 + 距离下一次目标就寝的提示 */}
-        <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3.5 space-y-1.5`}>
+        <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3 space-y-2`}>
           <p className={`text-xs font-mono font-bold ${theme.accentText}`}>
             {userProfile.targetBedtime} 入睡 · {userProfile.targetDurationHours} 小时 · {userProfile.targetWakeTime} 醒来
           </p>
@@ -356,17 +356,17 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <span className={`text-xs ${theme.textMuted} font-mono`}>共 {records.length} 条记录</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={handleExportJSON}
-            className={`py-2.5 px-3 rounded-xl ${theme.cardInnerBg} hover:opacity-90 border ${theme.cardBorder} text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow`}
+            className={`py-2 px-3 rounded-xl ${theme.cardInnerBg} hover:opacity-90 border ${theme.cardBorder} text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow`}
           >
             <Download className="w-4 h-4 text-emerald-400" />
             <span>导出 JSON 备份</span>
           </button>
 
-          <label className={`py-2.5 px-3 rounded-xl ${theme.cardInnerBg} hover:opacity-90 border ${theme.cardBorder} text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow`}>
+          <label className={`py-2 px-3 rounded-xl ${theme.cardInnerBg} hover:opacity-90 border ${theme.cardBorder} text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow`}>
             <Upload className="w-4 h-4 text-indigo-400" />
             <span>导入备份文件</span>
             <input
@@ -381,7 +381,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         <button
           type="button"
           onClick={onResetDemoData}
-          className={`w-full py-2.5 rounded-xl ${theme.cardInnerBg} hover:opacity-80 border ${theme.cardInnerBorder} ${theme.textMuted} hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer`}
+          className={`w-full py-2 rounded-xl ${theme.cardInnerBg} hover:opacity-80 border ${theme.cardInnerBorder} ${theme.textMuted} hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer`}
         >
           <RotateCcw className="w-3.5 h-3.5 opacity-60" />
           <span>恢复示例数据（7天演示）</span>

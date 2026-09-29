@@ -795,7 +795,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                           width: `${widthPercent}%`,
                           backgroundColor: isHovered ? theme.accentHex : `${theme.accentHex}99`,
                         }}
-                        className="absolute top-0.5 bottom-0.5 rounded flex items-center justify-between px-1.5"
+                        className="absolute top-0.5 bottom-0.5 rounded flex items-center justify-between px-2"
                       >
                         <span className="text-[11px] font-mono text-white">{r.bedtime}</span>
                         <span className="text-[11px] font-mono text-white">{r.wakeTime}</span>

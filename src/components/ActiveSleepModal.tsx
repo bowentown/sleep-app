@@ -354,7 +354,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
           </div>
 
           {/* Elapsed Duration Display */}
-          <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full ${theme.cardInnerBg} border ${theme.cardInnerBorder} text-xs ${theme.textSecondary} mb-6`}>
+          <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full ${theme.cardInnerBg} border ${theme.cardInnerBorder} text-xs ${theme.textSecondary} mb-6`}>
             <span>已记录睡眠：</span>
             <span className={`font-mono ${theme.accentText} font-semibold tabular-nums`}>
               {elapsedHours > 0 ? `${elapsedHours}小时` : ''}
@@ -365,7 +365,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
           {/* Sound / Ambient Noise Visualizer */}
           <div className={`w-full max-w-xs ${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-4 mb-4`}>
             <div className={`flex items-center justify-between text-xs ${theme.textMuted} mb-2`}>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <Volume2 className={`w-3.5 h-3.5 ${theme.accentText}`} />
                 <span>枕边环境声级 · 实时采样</span>
               </div>
@@ -375,7 +375,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
             </div>
 
             {/* Waveform bars */}
-            <div className="flex items-end justify-center gap-1.5 h-10 px-2">
+            <div className="flex items-end justify-center gap-2 h-10 px-2">
               {soundBars.map((height, i) => (
                 <div
                   key={i}
@@ -406,7 +406,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
                   .join(' ')}
               />
             </svg>
-            <div className={`text-[11px] ${theme.textMuted} mt-2 text-left space-y-0.5`}>
+            <div className={`text-[11px] ${theme.textMuted} mt-2 text-left space-y-1`}>
               <p className={`${theme.textSecondary} font-medium`}>
                 {micStatus === 'active'
                   ? decibels !== null && decibels < 40
@@ -451,7 +451,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
                   <button
                     key={s.type}
                     onClick={() => toggleSound(s.type)}
-                    className={`py-2 px-2.5 rounded-xl border text-xs flex flex-col items-center gap-1 transition-all ${
+                    className={`py-2 px-3 rounded-xl border text-xs flex flex-col items-center gap-1 transition-all ${
                       active
                         ? `${theme.navActiveBg} border ${theme.cardInnerBorder} ${theme.accentText}`
                         : `${theme.cardInnerBg} border ${theme.cardInnerBorder} ${theme.textSecondary} hover:opacity-80`
@@ -492,7 +492,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
                 <button
                   key={item.key}
                   onClick={() => setSelectedMood(item.key)}
-                  className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 text-xs transition-all ${
+                  className={`p-3 rounded-xl border flex flex-col items-center gap-1 text-xs transition-all ${
                     selectedMood === item.key
                       ? `${theme.navActiveBg} border ${theme.cardInnerBorder} ${theme.accentText}`
                       : `${theme.cardInnerBg} border ${theme.cardInnerBorder} ${theme.textMuted} hover:opacity-80`
@@ -510,7 +510,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
 
           {/* Awakenings slider */}
           <div className={`mb-4 ${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-xl p-3`}>
-            <div className={`flex justify-between text-xs ${theme.textSecondary} mb-1.5`}>
+            <div className={`flex justify-between text-xs ${theme.textSecondary} mb-1`}>
               <span>夜间醒来次数</span>
               <span className={`font-semibold ${theme.accentText}`}>{wakeCount} 次</span>
             </div>
@@ -527,7 +527,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
 
           {/* Dream diary input */}
           <div className="mb-4">
-            <label className={`block text-xs font-medium ${theme.textSecondary} mb-1.5`}>昨夜梦境记录 (选填)</label>
+            <label className={`block text-xs font-medium ${theme.textSecondary} mb-1`}>昨夜梦境记录 (选填)</label>
             <textarea
               value={dreamNotes}
               onChange={(e) => setDreamNotes(e.target.value)}
@@ -540,7 +540,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
           {/* Confirm & Save Button */}
           <button
             onClick={handleFinishSleep}
-            className={`w-full py-3.5 px-4 rounded-xl ${theme.accentBg} text-white font-medium text-sm shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
+            className={`w-full py-3 px-4 rounded-xl ${theme.accentBg} text-white font-medium text-sm shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
           >
             <Check className="w-4 h-4" />
             <span>生成睡眠质量分析报告</span>
@@ -550,10 +550,10 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
 
       {/* Bottom Action Bar */}
       {!isWakingUp && (
-        <div className="relative z-10 pt-4 flex flex-col gap-2.5 max-w-xs mx-auto w-full">
+        <div className="relative z-10 pt-4 flex flex-col gap-2 max-w-xs mx-auto w-full">
           <button
             onClick={() => setIsWakingUp(true)}
-            className={`w-full py-3.5 px-4 rounded-2xl ${theme.accentBg} text-white font-semibold text-sm shadow-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
+            className={`w-full py-3 px-4 rounded-2xl ${theme.accentBg} text-white font-semibold text-sm shadow-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
           >
             <Sparkles className="w-4 h-4 text-white/80" />
             <span>我醒了 · 结束睡眠</span>

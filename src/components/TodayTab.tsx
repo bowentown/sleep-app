@@ -11,14 +11,13 @@ import { SleepHypnogram } from './SleepHypnogram';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { OneTapSleepTracker } from './OneTapSleepTracker';
 import { ThemeConfig } from '../utils/themeStyles';
-import { buildMorningSummary, describeDelta, minutesSinceNoon } from '../utils/sleepInsights';
+import { buildMorningSummary, describeWeekExtreme, describeDelta, minutesSinceNoon } from '../utils/sleepInsights';
 
 interface TodayTabProps {
   records: SleepRecord[];
   userProfile: UserProfile;
   onOpenActiveSleep: () => void;
   onOpenManualLog: () => void;
-  onNavigateToCoach: () => void;
   onSaveRecord?: (record: SleepRecord) => void;
   theme: ThemeConfig;
 }
@@ -28,7 +27,6 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   userProfile,
   onOpenActiveSleep,
   onOpenManualLog,
-  onNavigateToCoach,
   onSaveRecord,
   theme,
 }) => {
@@ -65,6 +63,8 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   // 这句话只做「把已有数字串成一个判断」，比较的对象（目标时长、目标就寝、
   // 本周最高/最低分）全部来自记录本身，不做任何医学推断。
   const weekRecords = records.slice(0, 7);
+  // 本周最佳/最差：卡片头部的徽标
+  const weekExtreme = latestRecord ? describeWeekExtreme(latestRecord, weekRecords) : null;
   const morningSummary = latestRecord
     ? buildMorningSummary(
         latestRecord,
@@ -94,7 +94,18 @@ export const TodayTab: React.FC<TodayTabProps> = ({
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.accentHex }}></span>
               昨夜睡眠小结
             </span>
-            <span className="font-mono text-slate-300 font-bold">{latestRecord.date}</span>
+            <span className="flex items-center gap-2">
+              {/* 「本周最佳/最差」放在日期旁边：它讲的是这一周，不是这一晚。
+                  原来拼在小结里，那一行要 315px 而可用宽只有 326px。 */}
+              {weekExtreme && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                  weekExtreme === '本周最佳'
+                    ? 'text-emerald-300 border-emerald-400/30 bg-emerald-400/10'
+                    : 'text-amber-300 border-amber-400/30 bg-amber-400/10'
+                }`}>{weekExtreme}</span>
+              )}
+              <span className="font-mono text-slate-300 font-bold">{latestRecord.date}</span>
+            </span>
           </div>
 
           {/* 一句话结论放在最显眼的位置：数据表保留，但先给判断，再给依据。 */}
@@ -242,18 +253,6 @@ export const TodayTab: React.FC<TodayTabProps> = ({
           <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
         </button>
 
-        <button
-          type="button"
-          onClick={onNavigateToCoach}
-          className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/[0.04] transition-colors active:bg-white/[0.07] cursor-pointer group"
-        >
-          <Sparkles className={`w-4 h-4 shrink-0 ${theme.accentText}`} />
-          <span className="flex-1 min-w-0">
-            <span className="text-xs font-bold text-white block">AI 睡眠节律问诊</span>
-            <span className={`text-[11px] ${theme.textMuted} font-medium block`}>基于近 7 天记录给出建议</span>
-          </span>
-          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
-        </button>
       </div>
     </div>
   );

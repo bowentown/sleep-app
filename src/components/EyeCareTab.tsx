@@ -166,7 +166,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
       {/* 1. 总开关 + 状态 */}
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-2xl bg-orange-500/20 text-orange-300 flex items-center justify-center border border-orange-400">
               <Eye className="w-5 h-5" />
             </div>
@@ -204,7 +204,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
               void eyeCareOpenPermissionSettings();
               onToast('授权后返回本页，再次打开护眼开关即可');
             }}
-            className="w-full py-2.5 rounded-xl bg-orange-500/20 border border-orange-400 text-orange-200 text-xs font-bold cursor-pointer active:scale-[0.98] transition-transform"
+            className="w-full py-2 rounded-xl bg-orange-500/20 border border-orange-400 text-orange-200 text-xs font-bold cursor-pointer active:scale-[0.98] transition-transform"
           >
             需要悬浮窗权限 · 前往系统设置授权
           </button>
@@ -216,7 +216,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
 
       {/* 2. 场景预设 */}
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl`}>
-        <div className="grid grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-4 gap-2">
           {SCENES.map((s) => {
             const Icon = s.icon;
             const selected = cfg.preset === s.id;
@@ -225,7 +225,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
                 key={s.id}
                 type="button"
                 onClick={() => patch({ preset: s.id, warmColor: s.color, warmStrength: s.strength, dimStrength: s.dim })}
-                className={`flex flex-col items-center gap-1.5 rounded-2xl py-3 px-1 border transition-all cursor-pointer active:scale-[0.96] ${
+                className={`flex flex-col items-center gap-2 rounded-2xl py-3 px-1 border transition-all cursor-pointer active:scale-[0.96] ${
                   selected
                     ? 'border-orange-400/80 bg-orange-500/10 shadow-lg shadow-orange-900/20'
                     : `${theme.cardInnerBg} ${theme.cardInnerBorder} hover:border-white/20`
@@ -246,12 +246,12 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
       </div>
 
       {/* 3. 自定义调色盘 */}
-      <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3.5`}>
+      <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3`}>
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => patch({ preset: 'custom' })}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
               cfg.preset === 'custom'
                 ? 'border-orange-400/80 bg-orange-500/10 text-orange-200'
                 : `${theme.cardInnerBg} ${theme.cardInnerBorder} text-white`
@@ -297,8 +297,8 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
       </div>
 
       {/* 4. 强度调节 */}
-      <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3.5`}>
-        <div className="space-y-1.5">
+      <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-xl space-y-3`}>
+        <div className="space-y-2">
           <div className="flex justify-between text-xs font-bold">
             <span className="text-slate-200">滤镜强度</span>
             <span className="text-orange-400 font-mono">{cfg.warmStrength}%</span>
@@ -314,7 +314,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
             aria-label="滤镜强度"
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="flex justify-between text-xs font-bold">
             <span className="text-slate-200">屏幕减光</span>
             <span className="text-indigo-400 font-mono">{cfg.dimStrength}%</span>
@@ -351,7 +351,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
         </div>
 
         {cfg.scheduleEnabled && (
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3`}>
               <span className="text-xs text-slate-400 block mb-1">开始</span>
               <input

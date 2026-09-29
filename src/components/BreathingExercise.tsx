@@ -82,7 +82,7 @@ export const BreathingExercise: React.FC = () => {
   return (
     <div className="w-full bg-slate-900/80 rounded-2xl p-5 border border-slate-800/80 flex flex-col items-center text-center">
       <div className="flex items-center justify-between w-full mb-3">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
           <Wind className="w-4 h-4 text-teal-400" />
           <span>4-7-8 神经降噪呼吸法</span>
         </div>
@@ -137,7 +137,7 @@ export const BreathingExercise: React.FC = () => {
         {!isActive ? (
           <button
             onClick={handleStart}
-            className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center gap-1.5 shadow-lg shadow-teal-950 active:scale-95 transition-all"
+            className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-teal-950 active:scale-95 transition-all"
           >
             <Play className="w-3.5 h-3.5 fill-white" />
             <span>开始呼吸引导</span>
@@ -145,7 +145,7 @@ export const BreathingExercise: React.FC = () => {
         ) : (
           <button
             onClick={handlePause}
-            className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center gap-1.5 active:scale-95 transition-all"
+            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center gap-2 active:scale-95 transition-all"
           >
             <Pause className="w-3.5 h-3.5" />
             <span>暂停</span>
@@ -154,7 +154,7 @@ export const BreathingExercise: React.FC = () => {
 
         <button
           onClick={handleReset}
-          className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+          className="p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
           title="重置"
         >
           <RotateCcw className="w-3.5 h-3.5" />

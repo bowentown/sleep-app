@@ -19,6 +19,7 @@ import {
   computeSleepDebt,
   computeBedtimeRegularity,
   buildMorningSummary,
+  describeWeekExtreme,
 } from '../src/utils/sleepInsights.js';
 import { buildSleepRecord } from '../src/utils/sleepRecord.js';
 import { formatDurationChinese } from '../src/utils/sleepScore.js';
@@ -98,6 +99,12 @@ section('首页就寝卡的按时段状态');
   const boundary = getBedtimeStatus(at(21, 0), TARGET);
   check('21:00（正好 2 小时）进入倒计时', boundary.tone === 'windDown' && boundary.headline.includes('2小时'),
     `${boundary.tone} / ${boundary.headline}`);
+
+  // 正好到点：不能说「已超过 0分钟」——一分钟都没超过
+  const exactly = getBedtimeStatus(at(23, 0), TARGET);
+  check('正好到目标就寝时不显示「已超过 0分钟」',
+    exactly.tone === 'windDown' && !/已超过\s*0/.test(exactly.headline),
+    `${exactly.tone} / ${exactly.headline}`);
 
   const late = getBedtimeStatus(at(23, 50), TARGET);
   check('23:50 显示已超过 50 分钟', late.tone === 'overdue' && late.headline.includes('50分钟'),
@@ -251,10 +258,40 @@ section('起床后的一句话总结');
   check('总结不复述数据表里的总睡眠时长', !sBest.includes('总睡眠'), sBest);
   check('总结不复述数据表里的效率', !sBest.includes('效率'), sBest);
   check('总结不复述数据表里的深睡分钟数', !sBest.includes('深睡'), sBest);
-  check('本周最高分被称为「本周最好的一晚」', sBest.includes('本周最好的一晚'), sBest);
-  check('本周最低分被称为「本周最差的一晚」', sWorst.includes('本周最差的一晚'), sWorst);
-  // 长度上限：一句话总结就该是一行，不能长成一段。
-  check('总结不超过 52 字', sBest.length <= 52, `${sBest.length} 字：${sBest}`);
+  // 「本周最佳/最差」现在是卡片头部的徽标，不再拼进小结（拼进去实测要 315px，
+  // 而卡内可用宽只有 326px，余量 11px）。它讲的是**这一周**，不是这一晚，
+  // 所以由 describeWeekExtreme 单独给出，渲染在日期旁边。
+  check('最高分被标为「本周最佳」', describeWeekExtreme(best, week) === '本周最佳',
+    String(describeWeekExtreme(best, week)));
+  check('最低分被标为「本周最差」', describeWeekExtreme(worst, week) === '本周最差',
+    String(describeWeekExtreme(worst, week)));
+  check('小结里不再重复写本周极值',
+    !sBest.includes('本周最佳') && !sBest.includes('本周最差'), sBest);
+  check('记录不足 3 天时不给「本周最佳/最差」', describeWeekExtreme(best, week.slice(0, 2)) === null,
+    String(describeWeekExtreme(best, week.slice(0, 2))));
+
+  // **小结必须放得下一行**。390px 宽的手机上卡片左右各 16px 内边距，
+  // 卡内可用宽 326px（浏览器实测）。
+  //
+  // 只数字数不够准：汉字与数字宽度差近一倍。这里按 14px 的实测字宽估算。
+  // 权重故意取大一点（宁可保守），并用浏览器 getBoundingClientRect 校准过：
+  //   「…少睡24分、晚睡15分」          估算 252px / 实测 240.3px
+  //   「…少睡24分、晚睡15分 · 本周最佳」 估算 329px / 实测 315.2px ← 只剩 11px 余量
+  // 估算比实测大约高 4%，方向是对的：估算说放得下，实际就放得下。
+  // 字体或字号一改，这两个权重和阈值都要重新量。
+  const estimateWidth = (text: string) =>
+    [...text].reduce((w, ch) => (/[\u4e00-\u9fa5]/.test(ch) ? w + 14 : w + 7), 0);
+  check('小结放得下一行（估算宽度 ≤ 300px）', estimateWidth(sBest) <= 300,
+    `估 ${Math.round(estimateWidth(sBest))}px / 可用 326px：「${sBest}」`);
+  check('小结不超过 26 字', sBest.length <= 26, `${sBest.length} 字：${sBest}`);
+
+  // 上面测的是**恰好只产生一个差值**的那条记录（最坏情况没被覆盖：
+  // 把极值拼回去时它估 259px，照样过）。真正决定放不放得下的是最坏情况——
+  // 最长的开头（「整体还可以」）+ 两个三位数差值。
+  // 不测这个，断言就只是「今天这条数据放得下」，拦不住任何回归。
+  const worstCase = '整体还可以 · 比目标少睡 120分、晚睡 115分';
+  check('最坏情况下小结也放得下一行', estimateWidth(worstCase) <= 300,
+    `估 ${Math.round(estimateWidth(worstCase))}px / 可用 326px：「${worstCase}」`);
   check('总结用 · 分段而不是逗号长句', sBest.includes(' · ') && !sBest.includes('，'), sBest);
   check('总结不以句号结尾（它是标语而不是句子）', !sBest.endsWith('。'), sBest);
 

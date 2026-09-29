@@ -27,7 +27,7 @@ export const AndroidStatusBar: React.FC<AndroidStatusBarProps> = ({
   return (
     <div className="w-full shrink-0 select-none bg-[#161f33] border-b border-slate-800/80">
       {/* Mobile Top Bar */}
-      <div className="flex items-center justify-between px-5 pt-2 pb-1.5 text-xs font-medium text-slate-200 tracking-tight">
+      <div className="flex items-center justify-between px-5 pt-2 pb-2 text-xs font-medium text-slate-200 tracking-tight">
         {/* Left: Clock & App icon */}
         <div className="flex items-center gap-2">
           <span className="font-bold text-sm text-white tabular-nums">{timeStr}</span>

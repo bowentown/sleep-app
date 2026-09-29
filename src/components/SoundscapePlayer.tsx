@@ -117,7 +117,7 @@ export const SoundscapePlayer: React.FC = () => {
         </div>
 
         {isPlaying && (
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-xs text-emerald-400 font-medium animate-pulse">
+          <span className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-xs text-emerald-400 font-medium animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             播放中
           </span>
@@ -125,7 +125,7 @@ export const SoundscapePlayer: React.FC = () => {
       </div>
 
       {/* Soundscape Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
         {TRACKS.map((t) => {
           const isThisPlaying = activeTrackId === t.id && isPlaying;
           return (
@@ -142,7 +142,7 @@ export const SoundscapePlayer: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-slate-100">{t.name}</span>
                   {t.category === 'meditation' && (
-                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
+                    <span className="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
                       共振
                     </span>
                   )}
@@ -198,7 +198,7 @@ export const SoundscapePlayer: React.FC = () => {
         </div>
 
         {/* Timer selector */}
-        <div className="flex items-center justify-end gap-1.5 w-full sm:w-auto">
+        <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
           <div className="flex items-center gap-1 text-[11px] text-slate-400 mr-1">
             <Timer className="w-3.5 h-3.5 text-indigo-400" />
             <span>定时关</span>

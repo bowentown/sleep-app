@@ -117,7 +117,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
     <>
       <div className={`${theme.cardBg} rounded-3xl p-5 border ${theme.cardBorder} shadow-lg transition-all relative overflow-hidden`}>
         {!sleepStartTime ? (
-          <div className="space-y-3.5">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* 这里原本是 lucide 的 Moon，和页头品牌标识、底部导航是同一个造型。
@@ -158,7 +158,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
             <button
               type="button"
               onClick={handleStartSleep}
-              className={`w-full py-3.5 px-5 rounded-2xl ${theme.accentBg} text-white font-black text-xs tracking-wider flex items-center justify-center gap-2 active:scale-[0.99] transition-all cursor-pointer shadow-lg animate-cta-breathe`}
+              className={`w-full py-3 px-5 rounded-2xl ${theme.accentBg} text-white font-black text-xs tracking-wider flex items-center justify-center gap-2 active:scale-[0.99] transition-all cursor-pointer shadow-lg animate-cta-breathe`}
             >
               <span>轻按开启今夜就寝记录</span>
               <span className="text-sm">→</span>
@@ -185,7 +185,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
             <button
               type="button"
               onClick={handleWakeUp}
-              className="w-full py-3.5 px-5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black flex items-center justify-between active:scale-[0.99] transition-all cursor-pointer shadow-xl"
+              className="w-full py-3 px-5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black flex items-center justify-between active:scale-[0.99] transition-all cursor-pointer shadow-xl"
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-black/10 flex items-center justify-center">
@@ -198,7 +198,7 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
                   <span className="text-[11px] text-slate-800 font-bold">按实际入睡分钟数精准结算</span>
                 </div>
               </div>
-              <span className="text-xs font-black bg-black/10 px-3 py-1.5 rounded-xl text-slate-950">
+              <span className="text-xs font-black bg-black/10 px-3 py-2 rounded-xl text-slate-950">
                 完成本次睡眠 →
               </span>
             </button>
@@ -219,13 +219,13 @@ export const OneTapSleepTracker: React.FC<OneTapSleepTrackerProps> = ({ onSaveRe
             </h3>
 
             {completedRecord.durationMinutes < 30 && (
-              <div className="mb-4 text-xs text-amber-300 bg-amber-950/60 p-2.5 rounded-xl border border-amber-500/40 flex items-center gap-1.5 text-left">
+              <div className="mb-4 text-xs text-amber-300 bg-amber-950/60 p-3 rounded-xl border border-amber-500/40 flex items-center gap-2 text-left">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
                 <span>记录时长为 {completedRecord.durationMinutes} 分钟，按你实际开始/结束时间计算，未做拉长。</span>
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-2.5 mb-6">
+            <div className="grid grid-cols-3 gap-2 mb-6">
               <div className={`${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-2xl p-3`}>
                 <span className="text-xs text-slate-300 block mb-1 font-bold">实际时长</span>
                 <span className="text-[17px] font-black font-mono text-white">

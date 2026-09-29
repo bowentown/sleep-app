@@ -327,7 +327,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
           type="button"
           onClick={fetchAIAnalysis}
           disabled={isLoadingAnalysis}
-          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow active:scale-95 shrink-0 whitespace-nowrap"
+          className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow active:scale-95 shrink-0 whitespace-nowrap"
         >
           {isLoadingAnalysis ? (
             <>
@@ -379,7 +379,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 leading-relaxed text-xs ${
+                className={`max-w-[88%] rounded-2xl px-3 py-2 leading-relaxed text-xs ${
                   msg.role === 'user'
                     ? 'bg-indigo-600 text-white font-medium rounded-br-none'
                     : `${theme.cardInnerBg} text-white border ${theme.cardInnerBorder} rounded-bl-none`
@@ -392,7 +392,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
           ))}
 
           {isSendingChat && (
-            <div className="flex items-center gap-1.5 text-indigo-400 text-xs py-1">
+            <div className="flex items-center gap-2 text-indigo-400 text-xs py-1">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               <span>
                 {localStage === 'loading'
@@ -439,7 +439,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
                   type="button"
                   onClick={() => handleSendMessage(prompt)}
                   disabled={isSendingChat}
-                  className={`w-full text-left text-xs px-3.5 py-2.5 rounded-xl ${theme.cardInnerBg} hover:opacity-80 text-slate-300 border ${theme.cardInnerBorder} transition-all cursor-pointer disabled:opacity-50`}
+                  className={`w-full text-left text-xs px-3 py-2 rounded-xl ${theme.cardInnerBg} hover:opacity-80 text-slate-300 border ${theme.cardInnerBorder} transition-all cursor-pointer disabled:opacity-50`}
                 >
                   {prompt}
                 </button>
@@ -454,7 +454,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
             这里用条件渲染而不是 hidden：flex 与 hidden 都设 display，
             谁生效取决于 Tailwind 的生成顺序，不可靠。 */}
         {!isFreshChat && (
-          <div className="py-2 flex flex-wrap items-center gap-1.5 shrink-0 border-t border-slate-700/50">
+          <div className="py-2 flex flex-wrap items-center gap-2 shrink-0 border-t border-slate-700/50">
             {QUICK_PROMPTS.map((prompt, i) => (
               <button
                 key={i}
@@ -470,7 +470,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
         )}
 
         {/* Chat input box */}
-        <div className="pt-2.5 border-t border-slate-700/50 flex items-center gap-2 shrink-0">
+        <div className="pt-3 border-t border-slate-700/50 flex items-center gap-2 shrink-0">
           <input
             type="text"
             value={inputText}
@@ -479,13 +479,13 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
               if (e.key === 'Enter') handleSendMessage();
             }}
             placeholder="输入睡眠疑问..."
-            className={`flex-1 ${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 font-medium`}
+            className={`flex-1 ${theme.cardInnerBg} border ${theme.cardInnerBorder} rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 font-medium`}
           />
           <button
             type="button"
             onClick={() => handleSendMessage()}
             disabled={!inputText.trim() || isSendingChat}
-            className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-all cursor-pointer"
+            className="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-all cursor-pointer"
           >
             <Send className="w-4 h-4" />
           </button>

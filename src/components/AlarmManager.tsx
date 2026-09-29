@@ -199,7 +199,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
           <button
             type="button"
             onClick={handleStopRinging}
-            className="px-5 py-2.5 bg-white text-slate-900 font-black text-sm rounded-xl shadow-lg active:scale-95 transition-all cursor-pointer"
+            className="px-5 py-2 bg-white text-slate-900 font-black text-sm rounded-xl shadow-lg active:scale-95 transition-all cursor-pointer"
           >
             停止响铃
           </button>
@@ -223,7 +223,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
             }
             setIsAdding(!isAdding);
           }}
-          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer shadow-md whitespace-nowrap"
+          className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-2 transition-colors cursor-pointer shadow-md whitespace-nowrap"
         >
           {isAdding ? '取消' : <><Plus className="w-3.5 h-3.5 stroke-[3]" /><span>添加闹钟</span></>}
         </button>
@@ -262,7 +262,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               placeholder="闹钟备注（如：工作日晨读）"
-              className={`${innerBg} border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 w-44 text-right font-bold`}
+              className={`${innerBg} border border-slate-600 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 w-44 text-right font-bold`}
             />
           </div>
 
@@ -278,7 +278,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
 
           {/* Repeat Days */}
           <div>
-            <span className="text-xs text-white font-bold block mb-1.5">重复周期</span>
+            <span className="text-xs text-white font-bold block mb-1">重复周期</span>
             <div className="flex justify-between gap-1">
               {DEFAULT_DAYS.map(({ day, label }) => {
                 const isSelected = newDays.includes(day);
@@ -302,7 +302,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
 
           {/* Tone Selector & Preview */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-white font-bold">唤醒音阶</span>
               {testingTone && (
                 <button
@@ -327,7 +327,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                 <div
                   key={t.key}
                   onClick={() => setNewTone(t.key as any)}
-                  className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                     newTone === t.key
                       ? 'bg-indigo-600/40 border-indigo-400 text-white shadow-md'
                       : `${innerBg} ${innerBorder} text-slate-200 hover:border-slate-400`
@@ -357,7 +357,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
           </div>
 
           {/* Smart Wake Toggle & Window */}
-          <div className={`p-3 rounded-xl ${innerBg} border ${innerBorder} space-y-2.5`}>
+          <div className={`p-3 rounded-xl ${innerBg} border ${innerBorder} space-y-2`}>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs text-white block font-bold">浅睡唤醒</span>
@@ -400,7 +400,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
       )}
 
       {/* Alarm List */}
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {alarms.length === 0 ? (
           <div className={`p-5 rounded-2xl ${innerBg} border ${innerBorder} text-center text-xs text-slate-300 font-medium`}>
             暂无闹钟 · 点右上角添加

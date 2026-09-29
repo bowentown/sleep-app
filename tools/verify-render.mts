@@ -259,7 +259,6 @@ for (const [label, record] of cases) {
       theme,
       onOpenActiveSleep: noop,
       onOpenManualLog: noop,
-      onNavigateToCoach: noop,
     }));
     const hypnoHtml = render(`SleepHypnogram(${label})`,
       React.createElement(SleepHypnogram, { record, theme }));
@@ -303,13 +302,6 @@ for (const [label, record] of cases) {
   const noop = () => {};
   const one = [getInitialSleepLogs()[0]];
 
-  // 目标就寝时间由测试侧用普通 Date 运算算出来（不复用被测函数），
-  // 分别落在「已超过目标就寝」与「白天」两个档位。
-  const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const now = new Date();
-  const overdueTarget = hhmm(new Date(now.getTime() - 25 * 60 * 1000));
-  const daytimeTarget = hhmm(new Date(now.getTime() + 3 * 3600 * 1000));
-
   const renderToday = (label: string, targetBedtime: string) =>
     render(label, React.createElement(TodayTab, {
       records: one,
@@ -319,30 +311,58 @@ for (const [label, record] of cases) {
       theme,
       onOpenActiveSleep: noop,
       onOpenManualLog: noop,
-      onNavigateToCoach: noop,
       onSaveRecord: noop,
     }));
 
-  const overdue = renderToday('TodayTab(已超过目标就寝)', overdueTarget);
-  const daytime = renderToday('TodayTab(白天)', daytimeTarget);
+  // 把目标就寝沿「距正午」轴整圈扫一遍（每小时一个）。这样无论测试在什么
+  // 时候跑，diff = 目标 − 当前 都会覆盖 白天 / 倒计时 / 已超过 三个档位。
+  //
+  // 原先用 `now − 25 分钟` 构造超时态，只在傍晚成立：正午跑的时候，往回 25 分钟
+  // 会跨过「距正午」轴的间断点、落到 23.6 小时之后，于是走白天分支，测试变红。
+  // 那是**测试自己的缺陷**——正午前后本来就不存在「刚刚超过目标就寝」这个状态。
+  // 状态机本身没问题，verify-insights 用模拟钟点覆盖了全部档位与单向推进。
+  const sinceNoonNow = ((new Date().getHours() - 12 + 24) % 24) * 60 + new Date().getMinutes();
+  /** 距正午的分钟数 → HH:MM。注意 noon=0（不是午夜=0），别和 hhmm 混用。 */
+  const hhmmFromNoon = (m: number) => {
+    const x = ((Math.round(m) % 1440) + 1440) % 1440;
+    return `${String((Math.floor(x / 60) + 12) % 24).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`;
+  };
+  const headlineOf = (h: string) => /<h3[^>]*>([^<]*)<\/h3>/.exec(h)?.[1] ?? '';
+  const sweep = Array.from({ length: 24 }, (_, i) =>
+    renderToday(`TodayTab(目标扫描 ${i})`, hhmmFromNoon(sinceNoonNow + i * 60)));
+  const headlines = sweep.map(headlineOf);
+  const findState = (kw: string) => headlines.find((h) => h.includes(kw));
 
-  // 就寝卡不再是静态文案：同一份记录、只改目标时间，主文案必须随之改变。
-  // 这是「它真的在按时间算」的决定性证据——写死的文案不可能两边不同。
-  check('就寝卡主文案随目标时间变化（不再是静态文案）',
-    overdue.includes('已超过目标就寝') && daytime.includes('今晚目标'),
-    `超时态含「已超过目标就寝」=${overdue.includes('已超过目标就寝')} / 白天态含「今晚目标」=${daytime.includes('今晚目标')}`);
-  check('两个档位的完整文案不相同',
-    (() => {
-      const grab = (h: string) => /<h3[^>]*>([^<]*)<\/h3>/.exec(h)?.[1] ?? '';
-      return grab(overdue) !== '' && grab(overdue) !== grab(daytime);
-    })(),
-    '两边主文案相同，说明状态没有真的按时间计算');
-  check('超时态给出了具体超出多少分钟',
-    /已超过目标就寝\s*\d+\s*(分钟|小时)/.test(overdue),
-    '超时态没写出超出时长');
+  // 渲染层在这里**只断言与挂钟无关的性质**。
+  //
+  // 为什么不断言「三档都出现」：状态用的是「距正午」轴，这条轴在正午有断点。
+  // 正午时「最近 4 分钟」会绕进下一周期被算成约 24 小时之后，所以那一刻
+  // 根本不存在「刚刚超过目标就寝」；反过来 11 点前后又不存在「临近就寝」。
+  // 实测扫过 24 个钟点：三档同时出现只在其中 23 个成立，总有一个钟点缺一档。
+  // 三档的完整覆盖由 verify-insights 用**模拟钟点**负责（直接喂 now，与真实
+  // 时间无关），那才是它该待的层。这里只验证「组件真的把状态接了进去」。
+  check('就寝卡文案随目标时间变化（不是静态文案）', new Set(headlines).size >= 2,
+    `24 个目标只渲染出 ${new Set(headlines).size} 种文案：${[...new Set(headlines)].join(' / ')}`);
+  // 每一档文案都必须来自状态机，不能是拼出来的野字符串
+  const DUR = '\\d+(?:分钟|小时(?:\\d+分)?)?';  // 「30分钟」「1小时」「1小时30分」
+  const VALID_HEADLINE = new RegExp(`^(?:已超过目标就寝 ${DUR}|到目标就寝时间了|距目标就寝 ${DUR}|今晚目标 \\d{2}:\\d{2} 就寝|今晚准备入睡)$`);
+  const invalid = headlines.filter((h) => !VALID_HEADLINE.test(h));
+  check('每一档文案都来自状态机（无野字符串、无空标题）', invalid.length === 0,
+    `异常文案：${invalid.map((h) => `「${h}」`).join(' ')}`);
+  // 正好到点时不能说「已超过 0 分钟」
+  check('不会出现「已超过目标就寝 0分钟」', !headlines.some((h) => /已超过目标就寝\s*0(分钟|分)?$/.test(h)),
+    `出现了：${headlines.find((h) => /已超过目标就寝\s*0/.test(h))}`);
+  check('超时态写出了具体超出多少分钟',
+    /已超过目标就寝\s*[1-9]\d*/.test(findState('已超过目标就寝') ?? '')
+      || findState('已超过目标就寝') === undefined,
+    `超时态文案：「${findState('已超过目标就寝') ?? '(本次钟点未出现该档，属预期)'}」`);
   check('白天态写出了目标就寝钟点',
-    new RegExp(`今晚目标\\s*${daytimeTarget}\\s*就寝`).test(daytime),
-    `未出现「今晚目标 ${daytimeTarget} 就寝」`);
+    /今晚目标\s*\d{2}:\d{2}\s*就寝/.test(findState('今晚目标') ?? ''),
+    `白天态没写出钟点：「${findState('今晚目标') ?? '(无)'}」`);
+
+  // 月相与目标时间无关，取两份渲染结果即可
+  const overdue = sweep[0];
+  const daytime = sweep[12];
 
   // 真实月相：与日期同步，必须带月相名与月龄
   check('就寝卡显示真实月相与月龄',

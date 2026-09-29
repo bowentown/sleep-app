@@ -103,14 +103,14 @@ git push -u origin main`;
               )}
 
               {isInstalled ? (
-                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>应用已成功以原生独立形态安装在您的设备上！</span>
                 </div>
               ) : (
-                <div className="space-y-2.5">
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <div className="font-semibold text-slate-200 mb-1 flex items-center gap-1.5">
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                    <div className="font-semibold text-slate-200 mb-1 flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       <span>手机直接生成本地独立 App（无需外部工具）</span>
                     </div>
@@ -126,8 +126,8 @@ git push -u origin main`;
             </>
           ) : (
             <div className="space-y-3">
-              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                <div className="font-semibold text-slate-200 mb-1 flex items-center gap-1.5">
+              <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div className="font-semibold text-slate-200 mb-1 flex items-center gap-2">
                   <Github className="w-4 h-4 text-indigo-400" />
                   <span>开源至公开仓库「睡眠app」并编译 APK</span>
                 </div>
@@ -145,7 +145,7 @@ git push -u origin main`;
                     <a
                       href="/somna-sleep-app-source.zip"
                       download="somna-sleep-app-source.zip"
-                      className="px-2.5 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-1 text-xs shadow-sm"
+                      className="px-3 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-1 text-xs shadow-sm"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>下载 .ZIP 格式 (146KB)</span>
@@ -173,7 +173,7 @@ git push -u origin main`;
                         <span>{copiedGitCmd ? '已复制' : '复制命令'}</span>
                       </button>
                     </div>
-                    <pre className="text-xs font-mono text-slate-400 bg-slate-950 p-1.5 rounded overflow-x-auto max-h-24">
+                    <pre className="text-xs font-mono text-slate-400 bg-slate-950 p-2 rounded overflow-x-auto max-h-24">
                       {gitInitScript}
                     </pre>
                   </div>
@@ -193,7 +193,7 @@ git push -u origin main`;
           <div className="pt-2 border-t border-slate-800/80">
             <button
               onClick={handleCopyLink}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 font-medium flex items-center justify-center gap-2 transition-colors border border-slate-700"
+              className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 font-medium flex items-center justify-center gap-2 transition-colors border border-slate-700"
             >
               {copiedLink ? (
                 <>

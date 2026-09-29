@@ -328,6 +328,80 @@ check('自绘开关带 role="switch"（否则读屏读不出开/关）',
   switchesWithoutSemantics.length === 0,
   switchesWithoutSemantics.length ? `缺少开关语义：${switchesWithoutSemantics.join('、')}` : '');
 
+// ─────────────────────────────────────────────────────────────
+// 弹窗的键盘与读屏支持。
+//
+// 修之前：`Escape` 在 `src/` 里出现 **0 次**（没有任何弹窗能用键盘关掉），
+// 没有任何 `.focus()`（焦点从不进入弹窗，键盘用户 Tab 一遍还在被遮住的背景里），
+// `role="dialog"` 只加在 2 个弹窗上且**都没有可访问名称**。
+//
+// 规则不是「有 role 就行」，而是**必须走共用的 hook**——
+// 否则焦点与 Escape 会被逐个遗忘（本项目的「睡前习惯」缺陷就是各写一份分叉出来的）。
+// ─────────────────────────────────────────────────────────────
+{
+  const HOOK = 'useModalA11y';
+  /**
+   * 弹窗判据：受控（`isOpen`）+ 铺满全屏 + **会接收交互**。
+   *
+   * ★ 第三项不能少。`App.tsx` 里有四个 `fixed inset-0 z-[70]` 的**护眼滤镜层**
+   * （`pointer-events-none`），它们不是弹窗。
+   * 少了这一条，规则会把滤镜层也要求成对话框——**误报会让护栏失去信任**。
+   */
+  const isModalFile = (f: string): boolean => {
+    const src = stripComments(readFileSync(f, 'utf8'));
+    if (!/\bisOpen\b/.test(src)) return false;
+    const hits = [...src.matchAll(/fixed inset-0/g)];
+    if (hits.length === 0) return false;
+    // 只要有一个覆盖层不是 pointer-events-none，就算弹窗
+    return hits.some((m) => !/pointer-events-none/.test(src.slice(m.index!, m.index! + 200)));
+  };
+  const modalFiles = files.filter(isModalFile);
+  check('自检：确实识别出弹窗（不为 0，否则整段空跑）',
+    modalFiles.length >= 4, `只认出 ${modalFiles.length} 个`);
+
+  const noHook: string[] = [];
+  const noLabel: string[] = [];
+  for (const f of modalFiles) {
+    const src = stripComments(readFileSync(f, 'utf8'));
+    const rel = f.replace(/^src[\\/]/, '');
+    if (!src.includes(HOOK + '(')) { noHook.push(rel); continue; }
+    // label 必须是非空字符串字面量，且不能是模板串里塞变量（读屏要念得出来）
+    const call = src.slice(src.indexOf(HOOK + '('), src.indexOf(HOOK + '(') + 400);
+    if (!/label:\s*'[^']+'/.test(call) && !/label:\s*"[^"]+"/.test(call)) noLabel.push(rel);
+  }
+  check('铺满全屏的受控弹窗都走 useModalA11y（否则焦点与 Escape 会被逐个遗忘）',
+    noHook.length === 0, noHook.length ? `没走 hook：${noHook.join('、')}` : '');
+  check('每个弹窗都有非空的可访问名称（读屏要能说清是哪一个）',
+    noLabel.length === 0, noLabel.length ? `缺名称：${noLabel.join('、')}` : '');
+
+  // 反向：不许有原生 role="dialog" 绕开 hook（那样就没有焦点与 Escape）
+  const rawDialog = files
+    .filter((f) => /role="dialog"/.test(stripComments(readFileSync(f, 'utf8'))))
+    .map((f) => f.replace(/^src[\\/]/, ''));
+  check('没有弹窗手写 role="dialog" 绕开 hook（绕过就等于没有焦点管理）',
+    rawDialog.length === 0, rawDialog.join('、'));
+
+  // ★ 例外必须配反向自检，并且必须仍然「出得去」。
+  // 睡眠会话代表一段未保存的会话，误按 Escape 会丢掉它，所以不绑 Escape；
+  // 但必须有关闭按钮，否则键盘用户被关在里面。
+  // ★★ 第六次「检查匹配到自己的注释」：
+  // 这段说明的注释里**也写着** `closeOnEscape: false`，
+  // 所以第一版用原文查代码，注释里的字被当成了代码——
+  // 我把真正的 `closeOnEscape: false` 删掉做反向验证时，护栏**没有报错**。
+  // 凡是「查源码里有没有某段代码」，必须先剥注释。这条已经是第六次了。
+  const sleepRaw = readFileSync('src/components/ActiveSleepModal.tsx', 'utf8');
+  const sleepCode = stripComments(sleepRaw);
+  check('睡眠会话仍显式声明 closeOnEscape: false（例外不能悄悄消失）',
+    /closeOnEscape:\s*false/.test(sleepCode), '例外没了，请一并撤销这段断言');
+  check('睡眠会话的例外写了理由（否则以后会被当成笔误删掉）',
+    /误按 Escape|尚未保存/.test(sleepRaw), '缺少说明');
+  check('睡眠会话有关闭按钮（不绑 Escape 就必须给别的出口，否则键盘用户被困）',
+    /aria-label="关闭"/.test(sleepCode), '没有带标签的关闭按钮');
+  // 自检：确认「剥注释」这一步真的必要——注释里的同名文字不该被当成代码
+  check('自检：注释里的 closeOnEscape: false 不算代码（否则反向验证会假通过）',
+    /closeOnEscape:\s*false/.test(sleepRaw) && !/closeOnEscape:\s*false/.test(stripComments('// closeOnEscape: false\nconst x = 1;')));
+}
+
 console.log(`\n${'='.repeat(60)}`);
 console.log(`  扫描 ${files.length} 个 .tsx，共 ${buttonCount} 个按钮`);
 if (failures.length === 0) {

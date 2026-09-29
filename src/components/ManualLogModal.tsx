@@ -4,6 +4,7 @@ import { HABIT_OPTIONS, DEFAULT_HABITS, toggleHabit } from '../utils/preSleepHab
 import { SleepRecord, WakingMood } from '../types/sleep';
 import { buildSleepRecord } from '../utils/sleepRecord';
 import { ThemeConfig } from '../utils/themeStyles';
+import { useModalA11y } from '../utils/modalA11y';
 
 interface ManualLogModalProps {
   isOpen: boolean;
@@ -44,6 +45,9 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
   const innerBorder = theme?.cardInnerBorder || 'border-slate-700';
   const accentBg = theme?.accentBg || 'bg-indigo-600 hover:bg-indigo-500';
 
+  // 必须在提前 return 之前调用（hook 不能条件化）
+  const { ref: dialogRef, dialogProps } = useModalA11y({ isOpen, onClose, label: '补记昨夜睡眠' });
+
   if (!isOpen) return null;
 
   const onToggleHabit = (id: string) => setSelectedHabits((prev) => toggleHabit(prev, id));
@@ -69,9 +73,9 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-[100] bg-black/95 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      {...dialogProps}
+      ref={dialogRef}
+      className="fixed inset-0 z-[100] bg-black/95 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto outline-none"
     >
       <div className={`w-full max-w-md ${modalBg} border-2 border-indigo-400 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar my-auto`}>
         {/* Grab Handle */}

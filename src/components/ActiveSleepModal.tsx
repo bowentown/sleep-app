@@ -9,6 +9,7 @@ import { buildSleepRecord } from '../utils/sleepRecord';
 import { toLocalDateString, toLocalTimeString } from '../utils/dateUtils';
 import { SleepRecord, WakingMood } from '../types/sleep';
 import { ThemeConfig } from '../utils/themeStyles';
+import { useModalA11y } from '../utils/modalA11y';
 
 interface ActiveSleepModalProps {
   isOpen: boolean;
@@ -289,6 +290,16 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
     onClose();
   };
 
+  // ★ `closeOnEscape: false` —— 这个弹窗代表一段**正在进行、尚未保存**的睡眠会话，
+  // 误按 Escape 会直接把它丢掉，而不像表单那样可以重新填。
+  // 关闭按钮仍然可用（且已加 aria-label），键盘用户出得去。
+  const { ref: dialogRef, dialogProps } = useModalA11y({
+    isOpen,
+    onClose,
+    label: '睡眠会话',
+    closeOnEscape: false,
+  });
+
   if (!isOpen) return null;
 
   const elapsedHours = Math.floor(elapsedSeconds / 3600);
@@ -296,7 +307,11 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
   const elapsedSecs = elapsedSeconds % 60;
 
   return (
-    <div className={`fixed inset-0 z-50 ${theme.pageBg} ${theme.textPrimary} flex flex-col justify-between p-6 select-none overflow-y-auto`}>
+    <div
+      {...dialogProps}
+      ref={dialogRef}
+      className={`fixed inset-0 z-50 ${theme.pageBg} ${theme.textPrimary} flex flex-col justify-between p-6 select-none overflow-y-auto outline-none`}
+    >
       {/* 氛围背景：星点闪烁 + 顶部主题色极光辉光 */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {stars.map((s, i) => (

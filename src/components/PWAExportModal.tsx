@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Smartphone, X, Check, Share, ExternalLink, Github, Terminal, Copy } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { useModalA11y } from '../utils/modalA11y';
 
 interface PWAExportModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ export const PWAExportModal: React.FC<PWAExportModalProps> = ({ isOpen, onClose 
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedGitCmd, setCopiedGitCmd] = useState(false);
   const [activeTab, setActiveTab] = useState<'quick' | 'github'>('quick');
+
+  const { ref: dialogRef, dialogProps } = useModalA11y({ isOpen, onClose, label: '导出与安装' });
 
   if (!isOpen) return null;
 
@@ -50,7 +53,11 @@ git push -u origin main`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      {...dialogProps}
+      ref={dialogRef}
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 outline-none"
+    >
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 text-slate-100 shadow-2xl animate-in zoom-in-95">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">

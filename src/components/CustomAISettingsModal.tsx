@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { CustomAIConfig, AIProvider } from '../types/sleep';
 import { ThemeConfig } from '../utils/themeStyles';
+import { useModalA11y } from '../utils/modalA11y';
 import {
   
   
@@ -133,6 +134,8 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
     setLlmCache(c);
   };
 
+  const { ref: dialogRef, dialogProps } = useModalA11y({ isOpen, onClose, label: 'AI 服务设置' });
+
   if (!isOpen) return null;
 
   // Real-time API Endpoint Model Query Function
@@ -202,9 +205,9 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 overflow-y-auto"
+      {...dialogProps}
+      ref={dialogRef}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 overflow-y-auto outline-none"
     >
       <div className={`${theme.cardBg} border border-slate-700 rounded-3xl w-full max-w-md p-5 text-white shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto no-scrollbar`}>
         {/* Header */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, VolumeX, Play, Pause, Timer, Music2, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, Play, Pause, Timer, Music2 } from 'lucide-react';
 import { sleepAudio } from '../utils/audioSynth';
 import { SoundscapeTrack } from '../types/sleep';
 

@@ -202,9 +202,13 @@ export function computeBedtimeRegularity(records: SleepRecord[]): BedtimeRegular
  * 串成一个判断，但只陈述数据里确实存在的比较（早/晚于目标、本周最高/最低），
  * 不做任何医学推断。
  */
+/**
+ * 注意：**没有** `weekRecords` 参数。
+ * 「本周最佳/最差」已经拆到 `describeWeekExtreme` 单独处理（在卡片头部渲染成徽标），
+ * 这里曾经留着这个参数但从不读取——签名会让人以为摘要里做了周对照。
+ */
 export function buildMorningSummary(
   record: SleepRecord,
-  weekRecords: SleepRecord[],
   targetDurationMinutes: number,
   targetBedtime: string
 ): string {

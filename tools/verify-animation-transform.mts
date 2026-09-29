@@ -85,8 +85,7 @@ function collectAnimatedProps(source: string): Set<string> {
   const css = stripComments(source);
   const animated = new Set<string>();
   const kfRe = /@keyframes\s+([A-Za-z0-9_-]+)\s*\{/g;
-  let k: RegExpExecArray | null;
-  while ((k = kfRe.exec(css)) !== null) {
+  while (kfRe.exec(css) !== null) {
     let depth = 1;
     let i = kfRe.lastIndex;
     while (i < css.length && depth > 0) {

@@ -3,11 +3,8 @@ import {
   Clock,
   RotateCcw,
   Sliders,
-  Sun,
-  Moon,
   ShieldCheck,
   Palette,
-  CheckCircle2,
   Download,
   Upload,
 } from 'lucide-react';

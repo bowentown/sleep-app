@@ -385,6 +385,15 @@ async function generateViaNative(
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
         maxTokens: 220,
       });
+      // ★ 这个 signal 参数此前**完全没被读过**（`noUnusedParameters` 报出来的）。
+      // 后果：用户关掉面板或取消生成时，结果仍会被当成正常输出应用回去，
+      // 出现「我明明取消了，它却把答案写了出来」。
+      //
+      // 诚实的边界：原生插件**没有取消生成的接口**（只有 cancelDownload），
+      // 所以这里**停不下原生侧的推理**，模型仍会跑完。
+      // 能做到的是**不采用已取消的结果**。真正的取消需要原生加 cancelGenerate，
+      // 已记入 design-review/原生契约-智能唤醒.md。
+      if (signal?.aborted) throw new Error('生成已取消');
       if (result?.text && result.text.length > last.length) {
         handlers.onToken(result.text.slice(last.length));
         last = result.text;

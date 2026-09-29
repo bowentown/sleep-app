@@ -15,8 +15,8 @@ import {
 import { CustomAIConfig, AIProvider } from '../types/sleep';
 import { ThemeConfig } from '../utils/themeStyles';
 import {
-  LOCAL_LLM_MODEL,
-  NATIVE_LLM_MODEL,
+  
+  
   getActiveModelLabel,
   isNativeLlmAvailable,
   getHfToken,

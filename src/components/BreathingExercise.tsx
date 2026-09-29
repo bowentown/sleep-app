@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Wind, ShieldCheck, Heart } from 'lucide-react';
+import { Play, Pause, RotateCcw, Wind, Heart } from 'lucide-react';
 
 type BreathPhase = 'idle' | 'inhale' | 'hold' | 'exhale';
 

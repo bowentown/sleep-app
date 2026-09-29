@@ -5,10 +5,6 @@ import {
   Play,
   Square,
   Trash2,
-  Clock,
-  Sparkles,
-  Volume2,
-  Check,
   Sun,
   ShieldCheck,
 } from 'lucide-react';

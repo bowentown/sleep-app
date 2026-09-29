@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Moon, Clock, Sparkles, Check, Smartphone, Coffee, Bath, Flower2, BookOpen, Dumbbell, Wine, Utensils } from 'lucide-react';
+import { X, Moon, Clock, Check } from 'lucide-react';
+import { HABIT_OPTIONS, DEFAULT_HABITS, toggleHabit } from '../utils/preSleepHabits';
 import { SleepRecord, WakingMood } from '../types/sleep';
 import { buildSleepRecord } from '../utils/sleepRecord';
 import { ThemeConfig } from '../utils/themeStyles';
@@ -11,17 +12,6 @@ interface ManualLogModalProps {
   theme?: ThemeConfig;
   targetDurationHours?: number;
 }
-
-const HABIT_OPTIONS = [
-  { id: 'screen_time', label: '睡前玩手机', icon: Smartphone },
-  { id: 'caffeine', label: '下午喝咖啡/茶', icon: Coffee },
-  { id: 'hot_bath', label: '睡前温水澡', icon: Bath },
-  { id: 'meditation', label: '冥想/腹式呼吸', icon: Flower2 },
-  { id: 'reading', label: '纸质书阅读', icon: BookOpen },
-  { id: 'workout', label: '晚间运动', icon: Dumbbell },
-  { id: 'alcohol', label: '睡前饮酒', icon: Wine },
-  { id: 'heavy_meal', label: '夜宵饱腹', icon: Utensils },
-];
 
 export const ManualLogModal: React.FC<ManualLogModalProps> = ({
   isOpen,
@@ -38,23 +28,25 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
   const [wakeTime, setWakeTime] = useState('07:30');
   const [wakeCount, setWakeCount] = useState(1);
   const [latencyMinutes, setLatencyMinutes] = useState(15);
-  const [selectedMood, setSelectedMood] = useState<WakingMood>('refreshed');
-  const [selectedHabits, setSelectedHabits] = useState<string[]>(['reading', 'hot_bath']);
+  // ★ 默认必须是 'neutral'，不能是 'refreshed'。
+  // `sleepInsights.describeMoodVsScore` 把 'neutral' 当作 App 里「没说」的值
+  // （`buildSleepRecord` 的 `input.wakingMood ?? 'neutral'`），
+  // 并在注释里写明：把"没说"当成"感觉不错"，会让**一键记录和低分凑出一条假的矛盾**。
+  // 而这里原来预选 'refreshed'，等于用户不碰选择器就替他说了「精力充沛」，
+  // 于是那条假矛盾真的会生成出来——**引擎里的缓解措施被界面绕过了**。
+  // `OneTapSleepTracker` 一直用的是 'neutral'，这里向它看齐。
+  const [selectedMood, setSelectedMood] = useState<WakingMood>('neutral');
+  const [selectedHabits, setSelectedHabits] = useState<string[]>(DEFAULT_HABITS);
   const [dreamNotes, setDreamNotes] = useState('');
 
   const modalBg = theme?.cardBg || 'bg-[#1e293b]';
-  const modalBorder = theme?.cardBorder || 'border-slate-700';
   const innerBg = theme?.cardInnerBg || 'bg-[#0f172a]';
   const innerBorder = theme?.cardInnerBorder || 'border-slate-700';
   const accentBg = theme?.accentBg || 'bg-indigo-600 hover:bg-indigo-500';
 
   if (!isOpen) return null;
 
-  const toggleHabit = (id: string) => {
-    setSelectedHabits((prev) =>
-      prev.includes(id) ? prev.filter((h) => h !== id) : [...prev, id]
-    );
-  };
+  const onToggleHabit = (id: string) => setSelectedHabits((prev) => toggleHabit(prev, id));
 
   const handleSave = () => {
     // 统一走 buildSleepRecord：时长=总睡眠、清醒=潜伏期+夜醒、分期与字段自洽
@@ -221,7 +213,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
                   <button
                     type="button"
                     key={h.id}
-                    onClick={() => toggleHabit(h.id)}
+                    onClick={() => onToggleHabit(h.id)}
                     className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                       active
                         ? `${accentBg} text-white border border-white shadow-md`

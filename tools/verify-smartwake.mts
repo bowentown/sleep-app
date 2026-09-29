@@ -158,6 +158,31 @@ const AWAKE = 300;
     d2.effectiveAt === TARGET - 10 * EPOCH_MS, String(d2.effectiveAt));
 }
 
+// ═══════════════════ 6b. ★「有动静」这一档：介于安静与在动之间
+// 原来的用例只造了 STILL 和 AWAKE，于是「light 会不会被误判成安静」从来没被验证过——
+// 而 light 恰恰是设计上最主要的触发档。
+{
+  const cfg = base({ windowMs: 6 * EPOCH_MS, smoothEpochs: 1, minConsecutiveLight: 2 });
+  const d = decideWake(series([STILL, STILL, LIGHT, LIGHT, STILL, STILL], TARGET), cfg);
+  check('「有动静」档能触发唤醒（它是最主要的触发档）',
+    d.effectiveAt === TARGET - 4 * EPOCH_MS, String(d.effectiveAt));
+  check('「有动静」的触发理由是 found-light', d.reason === 'found-light', d.reason);
+
+  const d1 = decideWake(series([STILL, STILL, LIGHT, STILL, STILL, STILL], TARGET), cfg);
+  check('单个「有动静」样本不触发（去抖对 light 同样生效）',
+    d1.effectiveAt === TARGET, String(d1.effectiveAt));
+
+  const levels = classifyLevel([STILL, LIGHT, AWAKE], cfg);
+  check('light 不被归为安静', levels[1] === 'light', levels.join(','));
+  check('三档互不相同', new Set(levels).size === 3, levels.join(','));
+
+  // 平滑会把「有动静」拉向相邻的安静——这是设计意图（压掉单点噪声），
+  // 但也意味着阈值必须按**平滑后**的值标定。钉住这个耦合。
+  const sm = smoothActivity(series([STILL, STILL, LIGHT, STILL, STILL], TARGET), 5);
+  check('平滑后「有动静」被相邻安静拉低（阈值要按平滑后的值标定）',
+    sm[2]! < LIGHT && sm[2]! > STILL, String(sm[2]));
+}
+
 // ═══════════════════ 7. 触发点：运行段的起点
 {
   // 窗口 5 个 epoch：静 静 动 动 动 → 应停在「动」的第一个（下标 2）

@@ -241,8 +241,6 @@ export function generateLocalClinicalAnalysis(
 
   const hours = (avgDuration / 60).toFixed(1);
   const targetH = userProfile?.targetDurationHours || 8;
-  const debt = (targetH - Number(hours)).toFixed(1);
-
   // 报告不再自成一篇文章，而是从同一份「发现」里长出来。
   // 原先这里硬写 1403 字散文，和卡片上的结论各说各话；
   // 现在报告与聊天读的是同一批数据、同一套阈值，不可能互相矛盾。

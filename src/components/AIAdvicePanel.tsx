@@ -1,22 +1,16 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  Sparkles,
+  
   Send,
   Loader2,
-  Clock,
-  CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  Lightbulb,
-  MessageSquare,
   RefreshCw,
-  Zap,
   Moon,
 } from 'lucide-react';
 import { SleepRecord, SleepAnalysisResult, ChatMessage, UserProfile } from '../types/sleep';
 import { generateLocalClinicalAnalysis, generateLocalChatReply, classifyIntent } from '../utils/clinicalSleepEngine';
 import { renderEmphasis } from '../utils/richText';
-import { computeFindings, type Finding } from '../utils/sleepFindings';
+import { computeFindings  } from '../utils/sleepFindings';
 import {
   getActiveModelLabel,
   generateLocalLlmReply,

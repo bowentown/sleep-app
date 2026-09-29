@@ -1,21 +1,12 @@
 import React, { useState } from 'react';
 import {
-  TrendingUp,
-  Activity,
-  Layers,
+  
+  
+  
   Clock,
-  Sparkles,
-  Calendar,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
-  ChevronRight,
-  ShieldCheck,
-  Award,
-  Zap,
   Trash2,
-  Info,
-  CheckCircle2,
 } from 'lucide-react';
 import { SleepRecord } from '../types/sleep';
 import { formatDurationChinese } from '../utils/sleepScore';

@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Bell, Volume2, Sparkles, X, ChevronRight, Check, CloudRain, Waves, Flower2, Sunrise, CloudSun, Coffee, CloudFog } from 'lucide-react';
+import { Volume2, Sparkles, X, Check, CloudRain, Waves, Flower2, Sunrise, CloudSun, Coffee, CloudFog } from 'lucide-react';
+import { HABIT_OPTIONS, DEFAULT_HABITS, toggleHabit } from '../utils/preSleepHabits';
 import MoonDisc from './MoonDisc';
 import { getMoonInfo } from '../utils/moonPhase';
 import { sleepAudio } from '../utils/audioSynth';
@@ -37,10 +38,21 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
 
   // Finish review state
   const [isWakingUp, setIsWakingUp] = useState(false);
-  const [selectedMood, setSelectedMood] = useState<WakingMood>('refreshed');
+  // ★ 默认必须是 'neutral'，不能是 'refreshed'。
+  // `sleepInsights.describeMoodVsScore` 把 'neutral' 当作 App 里「没说」的值
+  // （`buildSleepRecord` 的 `input.wakingMood ?? 'neutral'`），
+  // 并在注释里写明：把"没说"当成"感觉不错"，会让**一键记录和低分凑出一条假的矛盾**。
+  // 而这里原来预选 'refreshed'，等于用户不碰选择器就替他说了「精力充沛」，
+  // 于是那条假矛盾真的会生成出来——**引擎里的缓解措施被界面绕过了**。
+  // `OneTapSleepTracker` 一直用的是 'neutral'，这里向它看齐。
+  const [selectedMood, setSelectedMood] = useState<WakingMood>('neutral');
   const [dreamNotes, setDreamNotes] = useState('');
   const [wakeCount, setWakeCount] = useState(1);
-  const [selectedHabits, setSelectedHabits] = useState<string[]>(['hot_bath', 'reading']);
+  // ★ 默认**空**。原来这里是 ['hot_bath', 'reading']，而这个弹窗没有习惯选择 UI，
+  // 于是每一晚通过主动睡眠会话记录的睡眠都被固定标成「泡了温水澡、读了书」，
+  // 再被 computeHabitFindings 当作实测标签做「有它 vs 没它」的对照。
+  // 见 utils/preSleepHabits.ts 的说明。
+  const [selectedHabits, setSelectedHabits] = useState<string[]>(DEFAULT_HABITS);
 
   const audioStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -53,12 +65,6 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
   // 麦克风会话代号：权限等待期间用户关掉弹窗时，迟到的流要立刻释放（否则麦克风常开泄漏）
   const micEpochRef = useRef(0);
   const [splHistory, setSplHistory] = useState<number[]>([]);
-  // 夜空色调：晚间 19-23 点带一层更深的蓝调渐变（随真实时间演化）
-  const eveningTint = useMemo(() => {
-    const h = new Date().getHours();
-    return Math.max(0, 1 - Math.abs(h - 21) / 4);
-  }, [isOpen]);
-
   // 星点背景：确定性伪随机分布（渲染稳定不闪烁），集中在上半区，随主题强调色着色
   const stars = useMemo(
     () =>
@@ -511,6 +517,35 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
                   <span className="text-[11px]">{item.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Pre-sleep Habits tags
+              这个入口原来没有习惯选择，却写死两个标签——补上选择器，
+              主动睡眠会话与手动补记才有同一套口径。 */}
+          <div className="mb-4">
+            <label className={`block text-xs font-medium ${theme.textSecondary} mb-2`}>
+              昨晚睡前做了什么 <span className={theme.textMuted}>(选填，可多选)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {HABIT_OPTIONS.map((h) => {
+                const active = selectedHabits.includes(h.id);
+                return (
+                  <button
+                    type="button"
+                    key={h.id}
+                    onClick={() => setSelectedHabits((prev) => toggleHabit(prev, h.id))}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                      active
+                        ? `${theme.accentBg} text-white border border-white shadow-md`
+                        : `${theme.cardInnerBg} text-slate-200 border ${theme.cardInnerBorder} hover:border-slate-400`
+                    }`}
+                  >
+                    <h.icon className="w-3.5 h-3.5" />
+                    <span>{h.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

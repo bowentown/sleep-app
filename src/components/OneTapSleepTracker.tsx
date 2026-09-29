@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BedDouble, Sun, AlertTriangle } from 'lucide-react';
 import { SleepRecord } from '../types/sleep';
-import { formatDurationChinese, clockAfter, DEFAULT_LATENCY_MINUTES } from '../utils/sleepScore';
+import {  clockAfter, DEFAULT_LATENCY_MINUTES } from '../utils/sleepScore';
 import { buildSleepRecord } from '../utils/sleepRecord';
 import { toLocalDateString, toLocalTimeString } from '../utils/dateUtils';
 import { ThemeConfig } from '../utils/themeStyles';

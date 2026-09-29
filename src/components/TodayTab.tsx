@@ -3,8 +3,6 @@ import {
   Plus,
   Play,
   ArrowRight,
-  Clock,
-  Sparkles,
   Wind,
   ChevronDown,
 } from 'lucide-react';
@@ -89,7 +87,6 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   const morningSummary = latestRecord
     ? buildMorningSummary(
         latestRecord,
-        weekRecords,
         Math.round(userProfile.targetDurationHours * 60),
         userProfile.targetBedtime
       )

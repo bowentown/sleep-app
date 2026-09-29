@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Smartphone, X, Check, Share, ExternalLink, ShieldCheck, Github, Terminal, Copy } from 'lucide-react';
+import { Download, Smartphone, X, Check, Share, ExternalLink, Github, Terminal, Copy } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface PWAExportModalProps {

@@ -200,10 +200,7 @@ const hhmm = (min: number): string =>
  * 这是本模块和固定稿的分界线：固定稿会同时列出所有可能原因（泡澡、光照、酒精…），
  * 等于没告诉你该先动哪一个。这里只挑一条，而且是**数据支持的那一条**。
  */
-function dominantCause(
-  stats: SleepStats,
-  candidates: { test: boolean; cause: string }[]
-): string | null {
+function dominantCause(candidates: { test: boolean; cause: string }[]): string | null {
   for (const c of candidates) {
     if (c.test) return c.cause;
   }
@@ -365,7 +362,7 @@ export function computeHabitFindings(records: SleepRecord[]): Finding[] {
  */
 export const MIN_NIGHTS_FOR_BASELINE = 14;
 
-export function computeTrendFinding(records: SleepRecord[], profile?: UserProfile): Finding | null {
+export function computeTrendFinding(records: SleepRecord[]): Finding | null {
   if (records.length < MIN_NIGHTS_FOR_BASELINE) return null;
 
   const sorted = [...records].sort((a, b) => (a.date < b.date ? 1 : -1)); // 新的在前
@@ -452,7 +449,7 @@ export function computeFindings(
   // ── 1. 深睡占比（TST 参照 13–23%；推演值，图例只标「推演·不可比」）──
   if (!insufficient) {
     if (s.deepPct < 13) {
-      const cause = dominantCause(s, [
+      const cause = dominantCause([
         {
           test: lateBed,
           cause: `你的就寝时间中位数是 ${fmtHour(s.medBedtimeHour)}，这很可能是首要原因：慢波睡眠集中在前半夜的周期里，入睡越晚，第一个深睡波峰被推得越靠后，而它本该是整晚最厚的一段。`,
@@ -524,7 +521,7 @@ export function computeFindings(
   // ── 2. 入睡潜伏期（正常 ≤30 分钟，是失眠的临床判据之一）──
   if (!insufficient) {
     if (s.medLatency > 30) {
-      const cause = dominantCause(s, [
+      const cause = dominantCause([
         {
           test: caffeineCount > 0,
           cause: `你的记录里有 ${caffeineCount} 晚睡前摄入咖啡因。咖啡因半衰期约 5–7 小时，清除 75% 需要近 10 小时——下午喝的咖啡到半夜仍在起效，这比你睡前做什么都更影响入睡。`,
@@ -637,7 +634,7 @@ export function computeFindings(
   // ── 4. 夜间觉醒 ──
   if (!insufficient) {
     if (s.avgWakeCount >= 3) {
-      const cause = dominantCause(s, [
+      const cause = dominantCause([
         {
           test: deepCount > 0,
           cause: `你的记录里有 ${deepCount} 晚饮酒。酒精代谢到后半夜会产生反跳性觉醒，这是"能睡着但睡不整"最常见的原因。`,
@@ -749,7 +746,7 @@ export function computeFindings(
   // 不对 `trend !== null` 收窄——它的赋值检查认为 null 不可赋给 Finding，
   // 但收窄不生效，两者行为不一致（`if (trend)`、`!== null`、三元式都不收窄，
   // 只有 `as` / `!` 能通过）。守卫本身是完整的，断言只是补上编译器这一环。
-  const trend = computeTrendFinding(records, profile);
+  const trend = computeTrendFinding(records);
   if (trend !== null) out.push(trend as Finding);
 
   // ── 7. 睡眠环境：不依赖数据，但是有明确共识的常识，问了就直说 ──

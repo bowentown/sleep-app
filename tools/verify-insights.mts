@@ -251,8 +251,7 @@ section('起床后的一句话总结');
   const best = week.reduce((a, b) => (b.sleepScore > a.sleepScore ? b : a));
   const worst = week.reduce((a, b) => (b.sleepScore < a.sleepScore ? b : a));
 
-  const sBest = buildMorningSummary(best, week, TARGET_MINUTES, '23:30');
-  const sWorst = buildMorningSummary(worst, week, TARGET_MINUTES, '23:30');
+  const sBest = buildMorningSummary(best, TARGET_MINUTES, '23:30');
 
   // 总结只写「表格里没有的东西」：与目标的差值、本周极值。
   // 总睡眠/效率/深睡分钟数在正下方的数据表里已经有了，复述一遍会让这一行
@@ -300,36 +299,35 @@ section('起床后的一句话总结');
 
   // 跨午夜的早晚比较：就寝 23:15 早于目标 23:30 → 应说「早睡」
   const early = buildMorningSummary(
-    { ...best, bedtime: '23:15' }, week, TARGET_MINUTES, '23:30');
+    { ...best, bedtime: '23:15' }, TARGET_MINUTES, '23:30');
   check('就寝早于目标时说「早睡」', early.includes('早睡'), early);
 
   const late = buildMorningSummary(
-    { ...best, bedtime: '23:45' }, week, TARGET_MINUTES, '23:30');
+    { ...best, bedtime: '23:45' }, TARGET_MINUTES, '23:30');
   check('就寝晚于目标时说「晚睡」', late.includes('晚睡'), late);
 
   // 跨午夜的另一侧：目标 23:30，实际 00:10 → 是「晚睡 40 分钟」而不是「早睡 23 小时」
   const afterMidnight = buildMorningSummary(
-    { ...best, bedtime: '00:10' }, week, TARGET_MINUTES, '23:30');
+    { ...best, bedtime: '00:10' }, TARGET_MINUTES, '23:30');
   check('00:10 相对目标 23:30 判定为晚睡而非早睡',
     afterMidnight.includes('晚睡') && !afterMidnight.includes('早睡'), afterMidnight);
 
   // 差异小于 15 分钟时不应写进结论，避免把噪声说成事实
   const tiny = buildMorningSummary(
-    { ...best, bedtime: '23:35', durationMinutes: TARGET_MINUTES + 5 },
-    week, TARGET_MINUTES, '23:30');
+    { ...best, bedtime: '23:35', durationMinutes: TARGET_MINUTES + 5 }, TARGET_MINUTES, '23:30');
   check('差异不足 15 分钟时不提「早睡/晚睡/多睡/少睡」',
     !tiny.includes('早睡') && !tiny.includes('晚睡') && !tiny.includes('多睡') && !tiny.includes('少睡'),
     tiny);
 
   // 天数不足 3 天时不该出现「本周最好」这种断言
   const twoDays = week.slice(0, 2);
-  const sTwo = buildMorningSummary(twoDays[0], twoDays, TARGET_MINUTES, '23:30');
+  const sTwo = buildMorningSummary(twoDays[0], TARGET_MINUTES, '23:30');
   check('不足 3 天时不评价「本周最好/最差」',
     !sTwo.includes('本周最好') && !sTwo.includes('本周最差'), sTwo);
 
   // 全部同分时几天都会自称「最好的一晚」，必须都不说
   const tied = week.map((r) => ({ ...r, sleepScore: 80 }));
-  const sTied = buildMorningSummary(tied[0], tied, TARGET_MINUTES, '23:30');
+  const sTied = buildMorningSummary(tied[0], TARGET_MINUTES, '23:30');
   check('全部同分时不评价「本周最好/最差」',
     !sTied.includes('本周最好') && !sTied.includes('本周最差'), sTied);
 }

@@ -256,6 +256,97 @@ const refFiles = [
 ];
 check('引用搜索排除了本文件（否则登记表会把自己要查的孤儿藏起来）',
   !refFiles.some((f) => f.endsWith(SELF)), refFiles.filter((f) => f.endsWith(SELF)).join('、'));
+// ── 睡前习惯：不许把用户没选过的习惯写成记录 ──
+// 缺陷背景：`ActiveSleepModal`（主动睡眠会话，用户主力流程）**没有习惯选择 UI**，
+// 却在保存时写死 `preSleepHabits: ['hot_bath', 'reading']`。
+// 而 `computeHabitFindings` 拿这些标签做「有该习惯 vs 无该习惯」的对照，
+// 并把结论标成 `provenance: 'measured'`。
+//
+// 也就是说：**编造的习惯标签在产出标着「实测」的习惯-效果结论**，
+// 而且它对照的其实是两种**记录方式**的差异，不是习惯的差异。
+// 这与第一轮的编造深睡、第三轮被丢弃的感受属于同一类。
+{
+  const FAKE = /preSleepHabits\s*:\s*\[(?=[^\]]*['"])/;
+  // 示例数据（`DEMO_SPEC`）里的字面量是合法的——它明摆着是示例，不是用户记录。
+  // 但豁免必须是**块级**而不是文件级：只放过 `DEMO_SPEC` 这一段，
+  // 同一文件里别处再写死照样要报。并且配一条反向自检（见下）。
+  const DEMO_BLOCK = /const DEMO_SPEC[\s\S]*?\n\];/;
+  const sleepRecordRaw = readFileSync('src/utils/sleepRecord.ts', 'utf8');
+  const demoHit = DEMO_BLOCK.exec(sleepRecordRaw);
+  check('示例数据的豁免仍然必要（否则该撤销豁免）',
+    !!demoHit && FAKE.test(demoHit[0]),
+    'DEMO_SPEC 里已经没有字面量习惯了，请删掉这条豁免');
+
+  const offenders: string[] = [];
+  for (const f of files) {
+    let src = stripComments(readFileSync(f, 'utf8'));
+    if (relOf(f) === 'src/utils/sleepRecord.ts') src = src.replace(DEMO_BLOCK, '/* 示例数据已豁免 */');
+    if (FAKE.test(src)) offenders.push(relOf(f));
+  }
+  check('示例数据之外，没有任何地方把习惯写成非空字面量（那是替用户编造）',
+    offenders.length === 0,
+    offenders.length ? `写死了习惯标签：${[...new Set(offenders)].join('、')}` : '');
+
+  // 两个记录入口必须共用同一份选项，否则会再次分叉
+  for (const f of ['src/components/ActiveSleepModal.tsx', 'src/components/ManualLogModal.tsx']) {
+    const src = stripComments(readFileSync(f, 'utf8'));
+    check(`${relOf(f)} 的习惯选项来自共享模块（不再各存一份）`,
+      /from '\.\.\/utils\/preSleepHabits'/.test(src), '没有从 utils/preSleepHabits 导入');
+    check(`${relOf(f)} 默认不预勾选任何习惯`,
+      /useState<string\[\]>\(DEFAULT_HABITS\)/.test(src), '默认值不是 DEFAULT_HABITS');
+  }
+
+  // 没有入口才是这个缺陷的根
+  const active = stripComments(readFileSync('src/components/ActiveSleepModal.tsx', 'utf8'));
+  check('主动睡眠会话提供了习惯选择入口',
+    /HABIT_OPTIONS\.map/.test(active), '没有渲染 HABIT_OPTIONS');
+  check('主动睡眠会话用上了 setSelectedHabits（否则状态永远改不了）',
+    /setSelectedHabits\(/.test(active), '没有调用 setSelectedHabits');
+
+  // 注意：这句说明写在**注释**里，所以必须读原文而不是 stripComments 的结果——
+  // 护栏查注释内容时用剥注释后的文本，会永远查不到（本项目已犯过多次）。
+  // ── 醒来感受的默认值：不许把「没说」替用户说成「精力充沛」 ──
+  // `describeMoodVsScore` 的注释写明：neutral 是 App 里「没说」的默认值，
+  // 把它当成"感觉不错"会让**一键记录和低分凑出一条假的矛盾**。
+  // 但两个录入弹窗都预选 'refreshed'——**引擎里的缓解措施被界面绕过了**。
+  // 反向自检：这条豁免/约束必须仍然有意义（只要还有人写 'refreshed' 当默认就报错）。
+  const moodOffenders = files
+    .filter((f) => /useState<WakingMood>\('refreshed'\)/.test(stripComments(readFileSync(f, 'utf8'))))
+    .map(relOf);
+  check('没有弹窗把「醒来感受」默认成 refreshed（那是替用户说"精力充沛"）',
+    moodOffenders.length === 0, moodOffenders.join('、'));
+
+  const neutralUsers = files.filter((f) =>
+    /useState<WakingMood>\('neutral'\)/.test(stripComments(readFileSync(f, 'utf8'))));
+  check('感受选择器默认落在引擎认可的「没说」值上',
+    neutralUsers.length >= 2, `只有 ${neutralUsers.length} 处`);
+
+  const shared = readFileSync('src/utils/preSleepHabits.ts', 'utf8');
+  check('共享模块写明了默认不预勾选的原因（否则以后会被"顺手"加回默认值）',
+    /预勾选/.test(shared), '缺少说明');
+}
+
+// ── 「算了但结果没被用」这一整类缺陷，过去查不出来：手写扫描需要数据流分析。
+// 后来发现**编译器自带**——`noUnusedLocals` / `noUnusedParameters`。
+// 一打开就找出 3 个真缺陷：
+//   • ActiveSleepModal 的 `selectedHabits` 有 setter 却没人调用
+//     → 每一晚都被标上用户没选过的两个习惯，还被当成「实测」拿去做习惯-效果对照；
+//   • localLlmEngine 的 `generateViaNative` 参数 `signal` 从未被读
+//     → 取消了生成，结果仍会被应用回去；
+//   • clinicalSleepEngine 算了 sleep debt 然后丢掉。
+//
+// 开关本身也是护栏的一部分：被关掉等于护栏失效，所以这里钉住它。
+// （这条自检是写完上面那段之后才补的——护栏必须有自检，
+//   否则「把开关关掉」就是绕过整类检查的静默后门。）
+{
+  const tsconfig = JSON.parse(readFileSync('tsconfig.json', 'utf8'));
+  const co = tsconfig.compilerOptions ?? {};
+  check('tsconfig 开启了 noUnusedLocals（否则「算了没用」整类缺陷无人看守）',
+    co.noUnusedLocals === true, String(co.noUnusedLocals));
+  check('tsconfig 开启了 noUnusedParameters',
+    co.noUnusedParameters === true, String(co.noUnusedParameters));
+}
+
 const refSources = refFiles.map((f) => stripComments(readFileSync(f, 'utf8')));
 
 const exportNames = new Map<string, { file: string; dup: boolean }>();
@@ -273,7 +364,6 @@ for (const file of files) {
 const ORPHAN_KNOWN: Array<{ name: string; why: string }> = [
   { name: 'SoundscapePlayer', why: '声景播放器组件已完整，但没有入口——待产品决定' },
   { name: 'PWAExportModal', why: 'PWA 导出弹窗已完整，但没有入口——待产品决定' },
-  { name: 'AndroidStatusBar', why: 'Android 状态栏配色组件，没有入口——可能已被主题系统取代，待确认后删除' },
   { name: 'moonLitPath', why: '月相相关的绘图辅助函数，未被使用——可能是重构遗留，待确认后删除' },
 ];
 

@@ -30,6 +30,7 @@ const SEGMENTS = [
   ['作息节律', 'tools/verify-rhythm.mts'],
   ['AI 顾问', 'tools/verify-ai-advice.mts'],
   ['主题颜色类', 'tools/verify-theme-classes.mts'],
+  ['颜色对比度', 'tools/verify-contrast.mts'],
   ['文案护栏', 'tools/verify-copy.mts'],
   ['接线护栏', 'tools/verify-wiring.mts'],
   ['智能唤醒', 'tools/verify-smartwake.mts'],

@@ -148,7 +148,7 @@ git push -u origin main`;
                   <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
                     <div>
                       <span className="text-slate-300 font-medium">1. 下载全套源码压缩包</span>
-                      <p className="text-xs text-slate-500">Mac / Windows 双击直接解压</p>
+                      <p className="text-xs text-slate-400">Mac / Windows 双击直接解压</p>
                     </div>
                     <a
                       href="/somna-sleep-app-source.zip"

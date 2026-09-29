@@ -150,7 +150,7 @@ export const BreathingExercise: React.FC = () => {
         {!isActive ? (
           <button
             onClick={handleStart}
-            className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-teal-950 active:scale-95 transition-all"
+            className="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-teal-950 active:scale-95 transition-all"
           >
             <Play className="w-3.5 h-3.5 fill-white" />
             <span>开始呼吸引导</span>

@@ -25,7 +25,8 @@
     "verify:wiring": "tsx tools/verify-wiring.mts",
     "verify:smartwake": "tsx tools/verify-smartwake.mts",
     "verify:a11y": "tsx tools/verify-a11y.mts",
-    "verify:pet": "tsx tools/verify-pet.mts"
+    "verify:pet": "tsx tools/verify-pet.mts",
+    "verify:contrast": "tsx tools/verify-contrast.mts"
   },
   "dependencies": {
     "@capacitor/local-notifications": "^8.3.1",

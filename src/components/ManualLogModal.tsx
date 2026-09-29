@@ -44,6 +44,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
   const innerBg = theme?.cardInnerBg || 'bg-[#0f172a]';
   const innerBorder = theme?.cardInnerBorder || 'border-slate-700';
   const accentBg = theme?.accentBg || 'bg-indigo-600 hover:bg-indigo-500';
+  const accentFg = theme?.accentFg || 'text-white';
 
   // 必须在提前 return 之前调用（hook 不能条件化）
   const { ref: dialogRef, dialogProps } = useModalA11y({ isOpen, onClose, label: '补记昨夜睡眠' });
@@ -196,7 +197,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
                   onClick={() => setSelectedMood(m.key)}
                   className={`p-3 rounded-2xl border flex flex-col items-center gap-2 text-xs transition-all cursor-pointer ${
                     selectedMood === m.key
-                      ? `${accentBg} border-white text-white font-black shadow-lg scale-[1.02]`
+                      ? `${accentBg} border-white ${accentFg} font-black shadow-lg scale-[1.02]`
                       : `${innerBg} ${innerBorder} text-slate-200 hover:border-slate-400`
                   }`}
                 >
@@ -220,7 +221,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
                     onClick={() => onToggleHabit(h.id)}
                     className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                       active
-                        ? `${accentBg} text-white border border-white shadow-md`
+                        ? `${accentBg} ${accentFg} border border-white shadow-md`
                         : `${innerBg} text-slate-200 border ${innerBorder} hover:border-slate-400`
                     }`}
                   >
@@ -249,7 +250,7 @@ export const ManualLogModal: React.FC<ManualLogModalProps> = ({
         <button
           type="button"
           onClick={handleSave}
-          className={`w-full py-4 rounded-2xl ${accentBg} text-white font-black text-sm flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] transition-all cursor-pointer`}
+          className={`w-full py-4 rounded-2xl ${accentBg} ${accentFg} font-black text-sm flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] transition-all cursor-pointer`}
         >
           <Check className="w-5 h-5 stroke-[3]" />
           <span>保存记录并更新睡眠趋势</span>

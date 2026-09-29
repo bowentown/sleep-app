@@ -87,6 +87,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
   const textMuted = theme?.textMuted || 'text-slate-400';
   const textSecondary = theme?.textSecondary || 'text-slate-300';
   const accentBg = theme.accentBg;
+  const accentFg = theme.accentFg;
   const [viewMode, setViewMode] = useState<MetricViewMode>(initialViewMode);
   const [hoveredRecord, setHoveredRecord] = useState<SleepRecord | null>(null);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -252,7 +253,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
           {debt.surplusMinutes > 0 && debt.shortfallMinutes > 0 && (
             <>
               {' '}
-              <span className="text-slate-500">
+              <span className="text-slate-400">
                 （另有 {formatDurationChinese(debt.surplusMinutes)} 盈余，不抵扣缺口）
               </span>
             </>
@@ -461,7 +462,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               onClick={() => setViewMode('quality')}
               className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                 viewMode === 'quality'
-                  ? accentBg + ' text-white shadow'
+                  ? accentBg + ' ' + accentFg + ' shadow'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -472,7 +473,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               onClick={() => setViewMode('stages')}
               className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                 viewMode === 'stages'
-                  ? accentBg + ' text-white shadow'
+                  ? accentBg + ' ' + accentFg + ' shadow'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -483,7 +484,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               onClick={() => setViewMode('circadian')}
               className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                 viewMode === 'circadian'
-                  ? accentBg + ' text-white shadow'
+                  ? accentBg + ' ' + accentFg + ' shadow'
                   : 'text-slate-400 hover:text-white'
               }`}
             >

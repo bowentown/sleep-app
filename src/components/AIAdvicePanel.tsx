@@ -374,7 +374,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
               )}
             </div>
           ))}
-          <p className="text-[11px] text-slate-500 leading-relaxed">
+          <p className="text-[11px] text-slate-400 leading-relaxed">
             这些结论来自你自己的记录，不是通用建议；改动后重新记录即可看到变化。
           </p>
         </div>
@@ -398,7 +398,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
                 />
                 <span className="text-slate-300 flex-1 min-w-0 truncate">{f.metric}</span>
                 <span className="font-mono text-white shrink-0">{renderEmphasis(f.value)}</span>
-                <span className="text-slate-500 shrink-0 hidden sm:inline">{f.reference}</span>
+                <span className="text-slate-400 shrink-0 hidden sm:inline">{f.reference}</span>
               </div>
             ))}
           </div>
@@ -449,7 +449,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
               >
                 {renderEmphasis(msg.content)}
               </div>
-              <span className="text-[11px] text-slate-500 mt-1 px-1 font-mono">{msg.timestamp}</span>
+              <span className="text-[11px] text-slate-400 mt-1 px-1 font-mono">{msg.timestamp}</span>
             </div>
           ))}
 
@@ -494,7 +494,7 @@ export const AIAdvicePanel: React.FC<AIAdvicePanelProps> = ({ records, userProfi
                   懂睡眠 · 更懂你
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-mono">不知道从哪问起？试试这些：</p>
+              <p className="text-xs text-slate-400 font-mono">不知道从哪问起？试试这些：</p>
               {QUICK_PROMPTS.map((prompt, i) => (
                 <button
                   key={i}

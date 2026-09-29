@@ -553,7 +553,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
                     onClick={() => setSelectedHabits((prev) => toggleHabit(prev, h.id))}
                     className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                       active
-                        ? `${theme.accentBg} text-white border border-white shadow-md`
+                        ? `${theme.accentBg} ${theme.accentFg} border border-white shadow-md`
                         : `${theme.cardInnerBg} text-slate-200 border ${theme.cardInnerBorder} hover:border-slate-400`
                     }`}
                   >
@@ -597,7 +597,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
           {/* Confirm & Save Button */}
           <button
             onClick={handleFinishSleep}
-            className={`w-full py-3 px-4 rounded-xl ${theme.accentBg} text-white font-medium text-sm shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
+            className={`w-full py-3 px-4 rounded-xl ${theme.accentBg} ${theme.accentFg} font-medium text-sm shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
           >
             <Check className="w-4 h-4" />
             <span>生成睡眠质量分析报告</span>
@@ -610,7 +610,7 @@ export const ActiveSleepModal: React.FC<ActiveSleepModalProps> = ({
         <div className="relative z-10 pt-4 flex flex-col gap-2 max-w-xs mx-auto w-full">
           <button
             onClick={() => setIsWakingUp(true)}
-            className={`w-full py-3 px-4 rounded-2xl ${theme.accentBg} text-white font-semibold text-sm shadow-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
+            className={`w-full py-3 px-4 rounded-2xl ${theme.accentBg} ${theme.accentFg} font-semibold text-sm shadow-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all`}
           >
             <Sparkles className="w-4 h-4 text-white/80" />
             <span>我醒了 · 结束睡眠</span>

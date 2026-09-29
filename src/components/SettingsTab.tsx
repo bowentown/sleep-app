@@ -494,7 +494,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               <p className="text-[11px] font-bold text-sky-300 pt-1">
                 🐋 傲娇播报预览 · 共 {petSay.length} 句
                 <br />
-                <span className="text-slate-500 font-normal">
+                <span className="text-slate-400 font-normal">
                   睡眠／趋势／AI 顾问／护眼／偏好 五个区域各至少一句 · 头顶这张是「{petSticker.label}」
                 </span>
               </p>
@@ -507,7 +507,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-white">播报频率</p>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
+              <p className="text-[11px] text-slate-400 leading-relaxed">
                 每 {petEvery} 次点她自动播报一次，其余点击弹出「消息 / 护眼」按钮
               </p>
             </div>
@@ -544,7 +544,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </button>
           )}
 
-          <p className="text-[11px] text-slate-500 leading-relaxed">
+          <p className="text-[11px] text-slate-400 leading-relaxed">
             拖动可挪位置，松手自动吸附到屏幕边缘。点她弹「💬 消息 / 👁 护眼」两个按钮；
             消息看她头顶冒傲娇播报，护眼就地开关滤镜。她的表情会跟着时段走
             （清晨刚醒 / 午后打盹 / 深夜困倦），心情只由你的

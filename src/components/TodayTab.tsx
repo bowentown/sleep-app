@@ -202,7 +202,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                     睡得越少反而越高——所以既不该用它表达好坏，也不能不带来源标记。 */}
                 <span className="text-slate-300 font-bold">
                   深睡阶段
-                  <span className="ml-1 text-[11px] font-normal text-slate-500">推演</span>
+                  <span className="ml-1 text-[11px] font-normal text-slate-400">推演</span>
                 </span>
                 <span className="font-mono text-slate-200 font-black">
                   {latestRecord.deepSleepMinutes}分 · {Math.round((latestRecord.deepSleepMinutes / Math.max(1, latestRecord.durationMinutes)) * 100)}%
@@ -229,7 +229,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                   </div>
                 );
               })()}
-              <div className="pt-1 text-xs text-slate-500">
+              <div className="pt-1 text-xs text-slate-400">
                 时长与就寝为你的实际记录；深睡分期由作息推演，手机无法测量。
                 综合评分含 40 分的推演分期，仅供你与自己比较，非医疗诊断。
               </div>
@@ -287,7 +287,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
             <span className="text-xs font-bold text-white block">记录昨夜睡眠</span>
             <span className={`text-[11px] ${theme.textMuted} font-medium block`}>按真实起居时间补记</span>
           </span>
-          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
+          <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors shrink-0" />
         </button>
 
         <button
@@ -300,7 +300,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
             <span className="text-xs font-bold text-white block">助眠音景</span>
             <span className={`text-[11px] ${theme.textMuted} font-medium block`}>极简暗屏 · 白噪掩蔽</span>
           </span>
-          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
+          <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors shrink-0" />
         </button>
 
         {/* 睡前呼吸练习：与上面两条一样是轻量列表行，点开才展开内容 */}
@@ -318,7 +318,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
             <span className={`text-[11px] ${theme.textMuted} font-medium block`}>4-7-8 · 呼气比吸气长</span>
           </span>
           <ChevronDown
-            className={`w-4 h-4 text-slate-500 group-hover:text-white transition-transform shrink-0 ${
+            className={`w-4 h-4 text-slate-400 group-hover:text-white transition-transform shrink-0 ${
               showBreathing ? 'rotate-180' : ''
             }`}
           />
@@ -339,7 +339,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
             <span className={`text-[11px] ${theme.textMuted} font-medium block`}>5 条音轨 · 音量与定时</span>
           </span>
           <ChevronDown
-            className={`w-4 h-4 text-slate-500 group-hover:text-white transition-transform shrink-0 ${
+            className={`w-4 h-4 text-slate-400 group-hover:text-white transition-transform shrink-0 ${
               showSoundscape ? 'rotate-180' : ''
             }`}
           />

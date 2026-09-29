@@ -210,7 +210,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
           </button>
         )}
         {!native && (
-          <p className="text-xs text-slate-500">网页预览仅应用内生效；安装 APK 后全系统生效</p>
+          <p className="text-xs text-slate-400">网页预览仅应用内生效；安装 APK 后全系统生效</p>
         )}
       </div>
 
@@ -374,7 +374,7 @@ export const EyeCareTab: React.FC<EyeCareTabProps> = ({ userProfile, onUpdatePro
             </div>
           </div>
         )}
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           {cfg.scheduleEnabled
             ? '到点自动开、出窗自动关，支持跨午夜时段（如 22:00 – 07:00）'
             : '开启后按设定时间段自动开关滤镜'}

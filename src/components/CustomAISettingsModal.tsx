@@ -382,7 +382,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                     placeholder="hf_xxxxxxxxxxxx"
                     className="w-full bg-[#0a0f1d] border border-slate-600 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-400"
                   />
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-400 leading-relaxed">
                     Gemma 为门控模型：在 huggingface.co 登录 → 打开 litert-community/gemma-3-1b-it →
                     同意许可 → Settings → Access Tokens 生成只读令牌粘贴于此。令牌仅保存在本机。
                   </p>
@@ -416,7 +416,7 @@ export const CustomAISettingsModal: React.FC<CustomAISettingsModalProps> = ({
                     <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div style={{ width: `${llmProgress}%` }} className="h-full bg-indigo-500 transition-all duration-300" />
                     </div>
-                    <div className="text-right text-xs text-slate-500 font-mono">{llmProgress}%</div>
+                    <div className="text-right text-xs text-slate-400 font-mono">{llmProgress}%</div>
                   </div>
                 ) : llmCache?.cached ? (
                   <button

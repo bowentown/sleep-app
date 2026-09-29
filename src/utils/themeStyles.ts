@@ -33,6 +33,10 @@ export interface ThemeConfig {
   accentFocusBorder: string;
   accentColor: string;
   accentBg: string;
+  /** accentBg 上该用什么前景色。深色底用浅字、浅色底用深字——
+   *  这就是原先缺失的那一格：13 处按钮都硬编码 text-white，
+   *  在琥珀(3.20:1)与青(3.62:1)两套主题上低于 4.5:1。 */
+  accentFg: string;
   accentText: string;
   accentRing: string;
   /** 原始十六进制强调色：供 SVG 描边、图表与氛围光等内联样式使用 */
@@ -67,6 +71,7 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     cardInnerBorder: 'border-slate-800/60',
     accentColor: 'indigo-500',
     accentBg: 'bg-indigo-600 hover:bg-indigo-500',
+    accentFg: 'text-white',
     accentText: 'text-indigo-400',
     accentRing: 'ring-indigo-400',
     accentHex: '#818cf8',
@@ -97,6 +102,7 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     cardInnerBorder: 'border-zinc-800/60',
     accentColor: 'indigo-500',
     accentBg: 'bg-zinc-800 hover:bg-zinc-700',
+    accentFg: 'text-white',
     accentText: 'text-zinc-200',
     accentRing: 'ring-zinc-500',
     accentHex: '#d4d4d8',
@@ -107,7 +113,7 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     navBorder: 'border-zinc-800',
     navActiveBg: 'bg-zinc-800/80',
     navActiveText: 'text-white',
-    navInactiveText: 'text-zinc-500',
+    navInactiveText: 'text-zinc-400',
     dot: 'bg-zinc-200',
   },
   warm_amber: {
@@ -125,6 +131,7 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     cardInnerBorder: 'border-amber-900/70',
     accentColor: 'amber-500',
     accentBg: 'bg-amber-600 hover:bg-amber-500',
+    accentFg: 'text-slate-950',
     accentText: 'text-amber-300',
     accentRing: 'ring-amber-400',
     accentHex: '#fcd34d',
@@ -135,7 +142,7 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     navBorder: 'border-amber-950',
     navActiveBg: 'bg-amber-600/30',
     navActiveText: 'text-amber-300',
-    navInactiveText: 'text-amber-400/60',
+    navInactiveText: 'text-amber-200/90',
     dot: 'bg-amber-400',
   },
   serene_blue: {
@@ -153,6 +160,7 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     cardInnerBorder: 'border-cyan-900/70',
     accentColor: 'cyan-400',
     accentBg: 'bg-cyan-600 hover:bg-cyan-500',
+    accentFg: 'text-slate-950',
     accentText: 'text-cyan-300',
     accentRing: 'ring-cyan-400',
     accentHex: '#67e8f9',
@@ -163,7 +171,7 @@ export const APP_THEMES: Record<ThemeMode, ThemeConfig> = {
     navBorder: 'border-cyan-950',
     navActiveBg: 'bg-cyan-600/30',
     navActiveText: 'text-cyan-300',
-    navInactiveText: 'text-cyan-400/60',
+    navInactiveText: 'text-cyan-200/90',
     dot: 'bg-cyan-400',
   },
 };

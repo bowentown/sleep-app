@@ -54,6 +54,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
   const innerBg = theme?.cardInnerBg || 'bg-[#0f172a]';
   const innerBorder = theme?.cardInnerBorder || 'border-slate-800';
   const accentBg = theme?.accentBg || 'bg-indigo-600 hover:bg-indigo-500';
+  const accentFg = theme?.accentFg || 'text-white';
 
   // 1. 同步闹钟到原生后台系统 (当在 APK 下运行时)
   useEffect(() => {
@@ -182,7 +183,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
     <div className="space-y-4">
       {/* Active Ringing Overlay Notification Banner */}
       {activeRingingAlarm && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-600 via-indigo-600 to-violet-600 text-white shadow-2xl animate-pulse flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-700 via-indigo-700 to-violet-700 text-white shadow-2xl animate-pulse flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center">
               <Sun className="w-6 h-6 animate-spin text-amber-200" />
@@ -285,7 +286,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
                     onClick={() => handleToggleDay(day)}
                     className={`w-9 h-9 rounded-xl text-xs font-black transition-all cursor-pointer ${
                       isSelected
-                        ? `${accentBg} text-white shadow-md border-2 border-white`
+                        ? `${accentBg} ${accentFg} shadow-md border-2 border-white`
                         : `${innerBg} text-slate-300 border ${innerBorder} hover:text-white`
                     }`}
                   >
@@ -393,7 +394,7 @@ export const AlarmManager: React.FC<AlarmManagerProps> = ({ alarms, onUpdateAlar
           <button
             type="button"
             onClick={handleSaveNewAlarm}
-            className={`w-full py-3 rounded-xl ${accentBg} text-white text-xs font-black shadow-lg transition-all active:scale-98 cursor-pointer`}
+            className={`w-full py-3 rounded-xl ${accentBg} ${accentFg} text-xs font-black shadow-lg transition-all active:scale-98 cursor-pointer`}
           >
             保存并启动此闹钟
           </button>

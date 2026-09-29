@@ -197,7 +197,7 @@ export const SoundscapePlayer: React.FC = () => {
         {/* Volume Slider */}
         <div className="flex items-center gap-2 w-full sm:w-1/2">
           {volume === 0 ? (
-            <VolumeX className="w-4 h-4 text-slate-500 shrink-0" />
+            <VolumeX className="w-4 h-4 text-slate-400 shrink-0" />
           ) : (
             <Volume2 className="w-4 h-4 text-indigo-400 shrink-0" />
           )}

@@ -26,6 +26,12 @@ import {
   minutesSinceNoon,
   fromMinutesSinceNoon,
 } from '../utils/sleepInsights';
+import {
+  computeSleepRegularityIndex,
+  computeSleepMidpoint,
+  computeSocialJetlag,
+  MINUTES_PER_DAY,
+} from '../utils/sleepRhythm';
 import { ThemeConfig } from '../utils/themeStyles';
 
 interface TrendsTabProps {
@@ -39,6 +45,42 @@ interface TrendsTabProps {
 }
 
 export type MetricViewMode = 'quality' | 'stages' | 'circadian';
+
+/**
+ * SRI 的文字解读。
+ *
+ * 刻意**不**说「你低于/高于人群中位数」：本应用的 SRI 是按自报卧床区间估算的，
+ * 而文献里的 SRI 来自加速度计的逐分钟睡醒记录，两者口径不同。自报的睡醒时点
+ * 天然更平滑（人倾向报整点、也记不住夜里的碎醒），算出来会偏高，
+ * 直接跟队列比会让人误以为「我挺规律」。所以这里只描述这个数字本身的大小，
+ * 队列参考区间另行标注并说明口径差异。
+ */
+function describeSRI(sri: number): string {
+  if (sri >= 85) return '几乎每晚都在同一时间睡、同一时间醒。';
+  if (sri >= 72) return '大部分夜晚的睡醒时点比较一致。';
+  if (sri >= 60) return '有几晚的睡醒时点明显偏离，规律性一般。';
+  return '各晚睡醒时点差别很大。规律性对健康的影响不比睡够时长小。';
+}
+
+/** 社交时差的文字解读 */
+function describeSocialJetlag(minutes: number): string {
+  if (minutes < 30) return '工作日与周末作息基本一致。';
+  if (minutes < 60) return '周末略晚一些，属于常见的轻微偏移。';
+  if (minutes < 120) return '周末明显推迟，周一早上会有「倒时差」的感觉。';
+  return '周末与工作日差出一大截，相当于每周跨一次时区。';
+}
+
+/** 把「距正午的分钟数」显示成 HH:mm */
+function formatRhythmClock(minutes: number): string {
+  const m = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const clock = (m + 720) % MINUTES_PER_DAY;
+  return `${String(Math.floor(clock / 60)).padStart(2, '0')}:${String(Math.round(clock % 60)).padStart(2, '0')}`;
+}
+
+/** Windred 等 2024（SLEEP, 60,977 人队列）报告的 SRI 中位数与四分位距 */
+const SRI_COHORT_MEDIAN = 81.0;
+const SRI_COHORT_Q1 = 73.8;
+const SRI_COHORT_Q3 = 86.3;
 
 export const TrendsTab: React.FC<TrendsTabProps> = ({
   records,
@@ -85,6 +127,16 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
   const bestNight = last7Records.length
     ? last7Records.reduce((a, r) => (r.sleepScore >= a.sleepScore ? r : a), last7Records[0])
     : null;
+
+  // 作息节律指标：SRI（睡眠规律性指数）、睡眠中点、社交时差。
+  // 定义、出处与口径限制都写在 utils/sleepRhythm.ts 里。
+  // 用最近 14 晚而不是 7 晚：SRI 靠相邻日的逐分钟比对，日对数越多越稳。
+  // 中间的断档会让它两侧的日对整体失效，函数在这种情况下会返回 null，
+  // 而不是硬凑一个数字。
+  const rhythmRecords = sortedRecords.slice(0, 14).reverse();
+  const sri = computeSleepRegularityIndex(rhythmRecords);
+  const midpoint = computeSleepMidpoint(rhythmRecords);
+  const socialJetlag = computeSocialJetlag(rhythmRecords);
 
   const regularityClass = !regularity
     ? ''
@@ -286,6 +338,108 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* ===== 作息节律卡：SRI / 睡眠中点 / 社交时差 =====
+          这三项都有文献出处（见 utils/sleepRhythm.ts 顶部），
+          和上一张卡的「就寝时间标准差」不重复：
+          标准差只看就寝这一个时点、且单位是分钟，只能跟自己比；
+          SRI 同时看入睡与起床、取值 0–100、有队列参照；
+          睡眠中点带上起床那一端，社交时差则是工作日与周末的对照。 */}
+      <div className={`${theme.cardBg} rounded-3xl p-5 shadow-xl border ${theme.cardBorder} space-y-4`}>
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <Clock className={`w-4 h-4 ${theme.accentText}`} />
+            作息节律
+          </h3>
+          {sri && (
+            <span className={`text-2xl font-black font-mono tabular-nums ${theme.accentText}`}>
+              {sri.sri.toFixed(1)}
+            </span>
+          )}
+        </div>
+
+        {sri ? (
+          <div className="space-y-2">
+            {/* 规律性指数刻度条。参考区间用队列的 IQR 画成一条阴影带，
+                自己的位置用一个竖条标记——比只报一个数字更容易读懂量级。 */}
+            <div className="relative h-2.5 rounded-full bg-slate-800/70 overflow-hidden">
+              <div
+                className="absolute top-0 bottom-0 bg-slate-400/20"
+                style={{ left: `${SRI_COHORT_Q1}%`, width: `${SRI_COHORT_Q3 - SRI_COHORT_Q1}%` }}
+              />
+              <div
+                className={`absolute top-0 bottom-0 w-[3px] rounded-full ${theme.accentBg}`}
+                style={{ left: `calc(${Math.max(0, Math.min(100, sri.sri))}% - 1.5px)` }}
+              />
+            </div>
+            <div className={`flex justify-between text-[9px] font-mono ${theme.textMuted}`}>
+              <span>0 很不规律</span>
+              <span>队列 IQR {SRI_COHORT_Q1}–{SRI_COHORT_Q3}</span>
+              <span>100 极规律</span>
+            </div>
+            <p className={`text-[10px] ${theme.textMuted} leading-relaxed`}>
+              {describeSRI(sri.sri)}
+            </p>
+            {/* 这一段必须留着：不说清楚口径差异，用户会拿自己的自报数值
+                去跟加速度计队列比，得出错误结论。 */}
+            <p className={`text-[9px] ${theme.textMuted} opacity-70 leading-relaxed`}>
+              SRI 为 24 小时前后处于同一睡/醒状态的概率（Phillips 等，2017），
+              此处按<strong className="font-bold">自报卧床区间</strong>估算；
+              {/* 合成文案一律用模板字符串：JSX 里写成「… {n} …」的形式会被 React
+                  拆成多个文本节点，中间插入 <!-- -->，后续任何按整句匹配的断言
+                  都会断在注释上（本项目在批次 4 已经踩过一次）。 */}
+              {`参考区间取自 6 万人加速度计队列的中位数 ${SRI_COHORT_MEDIAN}（Windred 等，2024）。`}
+              两者测量方式不同，请以自己的历史变化为准。
+              {`已比较 ${sri.comparedDayPairs} 个相邻日对。`}
+            </p>
+          </div>
+        ) : (
+          <p className={`text-[10px] ${theme.textMuted}`}>
+            需要至少两晚<strong className="font-bold">连续</strong>记录才能算出规律性指数（中间缺一天会让它两侧的比较失效）。
+          </p>
+        )}
+
+        {midpoint && (
+          <div className={`pt-3 border-t ${theme.cardInnerBorder} flex items-baseline justify-between gap-3`}>
+            <span className={`text-[10px] ${theme.textMuted} shrink-0`}>睡眠中点</span>
+            <span className="text-[11px] font-bold text-white truncate">
+              {formatRhythmClock(midpoint.midpointMinutes)}
+              <span className={`${theme.textMuted} font-normal`}>
+                {' '}· 集中度 {midpoint.resultantLength.toFixed(2)} · {midpoint.nights} 晚
+              </span>
+            </span>
+          </div>
+        )}
+
+        {midpoint && midpoint.resultantLength < 0.7 && (
+          <p className={`text-[9px] text-amber-400/80 leading-relaxed`}>
+            集中度偏低意味着各晚中点散得很开，这时「平均中点」本身代表性不强，别把它当作固定作息。
+          </p>
+        )}
+
+        {socialJetlag && (
+          <>
+            <div className={`pt-3 border-t ${theme.cardInnerBorder} flex items-baseline justify-between gap-3`}>
+              <span className={`text-[10px] ${theme.textMuted} shrink-0`}>社交时差</span>
+              <span className="text-[11px] font-bold text-white truncate">
+                {formatDurationChinese(socialJetlag.jetlagMinutes)}
+                <span className={`${theme.textMuted} font-normal`}>
+                  {' '}· 自由日 {formatRhythmClock(socialJetlag.freedayMidpointMinutes)}
+                  {' '}/ 工作日 {formatRhythmClock(socialJetlag.workdayMidpointMinutes)}
+                </span>
+              </span>
+            </div>
+            <p className={`text-[10px] ${theme.textMuted} leading-relaxed`}>
+              {describeSocialJetlag(socialJetlag.jetlagMinutes)}
+              {socialJetlag.signedMinutes < 0 && '（你的自由日反而偏早）'}
+            </p>
+            <p className={`text-[9px] ${theme.textMuted} opacity-70 leading-relaxed`}>
+              按「起床日」区分自由日：周五晚与周六晚算自由夜，周日晚算工作日（因为周一要早起）。
+              只按星期几判断，轮班作息不适用。
+            </p>
+          </>
+        )}
       </div>
 
       {/* 2. Visual Trends Container */}

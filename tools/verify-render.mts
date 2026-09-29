@@ -16,6 +16,11 @@ import { TrendsTab } from '../src/components/TrendsTab.js';
 import { SleepHypnogram } from '../src/components/SleepHypnogram.js';
 import { TodayTab } from '../src/components/TodayTab.js';
 import { APP_THEMES } from '../src/utils/themeStyles.js';
+import {
+  computeSleepRegularityIndex,
+  computeSleepMidpoint,
+  computeSocialJetlag,
+} from '../src/utils/sleepRhythm.js';
 import { buildSleepRecord, getInitialSleepLogs } from '../src/utils/sleepRecord.js';
 import type { SleepRecord, UserProfile } from '../src/types/sleep.js';
 import {
@@ -27,6 +32,22 @@ import {
   minutesSinceNoon,
 } from '../src/utils/sleepInsights.js';
 import { formatDurationChinese } from '../src/utils/sleepScore.js';
+
+/**
+ * 去掉 lucide 图标，只保留图表自己的 SVG。
+ *
+ * 必要性：lucide 的每个图标都渲染成 `<svg class="lucide …">`，内部是
+ * `<circle>/<path>/<line>`。「数数据点」这类断言如果扫全文档，就会把图标里的
+ * 几何元素算进去——实测给卡片标题加了一个 Clock 图标（内部就是 `<circle r="10">`）
+ * 之后，数据点数从 7 变成 8。
+ *
+ * 更麻烦的是它连带触发了下面那个守卫，让 9 项逐点对齐断言**静默跳过**，
+ * 整套检查依然报「通过」。所以这里把图标剥掉：
+ * 断言要数的是图表自己画的东西，不是装饰图标。
+ */
+function stripLucideIcons(html: string): string {
+  return html.replace(/<svg[^>]*class="lucide[^"]*"[\s\S]*?<\/svg>/g, '');
+}
 
 let pass = 0;
 const failures: string[] = [];
@@ -431,7 +452,7 @@ for (const [label, record] of cases) {
   const html = render('TrendsTab(7条演示数据·标签对齐)',
     React.createElement(TrendsTab, { records: demoRecords, theme }));
 
-  const cxs = [...html.matchAll(/<circle cx="([\d.]+)"/g)].map((m) => Number(m[1]));
+  const cxs = [...stripLucideIcons(html).matchAll(/<circle cx="([\d.]+)"/g)].map((m) => Number(m[1]));
   // 居中不仅靠 left，还靠 -translate-x-1/2 把标签自身宽度抵消掉；
   // 只断言 left 的话，删掉居中变换不会被发现。
   const labelTags = [...html.matchAll(/<span[^>]*style="left:[\d.]+%"[^>]*>/g)].map((m) => m[0]);
@@ -447,6 +468,12 @@ for (const [label, record] of cases) {
   check('得分曲线日期标签自身水平居中', labelTags.length > 0
     && labelTags.every((t) => t.includes('-translate-x-1/2')),
     '标签缺少 -translate-x-1/2：left 定位的是标签左边缘而不是中心，仍会与数据点错开半个标签宽');
+
+  // 前置条件必须显式断言。原来只在 if 里判断，条件不成立时下面 9 项断言
+  // 会整块消失，而输出仍然是「通过」——检查器失效最难发现的就是这种形态。
+  check('数据点与日期标签数量齐备（逐点对齐断言的前提）',
+    lefts.length === demoRecords.length && cxs.length === demoRecords.length,
+    `标签 ${lefts.length} / 数据点 ${cxs.length} / 记录 ${demoRecords.length}：数量不齐会让下面 ${demoRecords.length + 2} 项断言整块跳过`);
 
   if (lefts.length === demoRecords.length && cxs.length === demoRecords.length) {
     // 相邻标签间距必须一致（不硬编码具体百分比，只要求等距，
@@ -626,6 +653,92 @@ for (const [label, record] of cases) {
 //
 // 所以该面板的两处布局缺陷（快捷提问 chip 被截断、评估按钮文字换行）由
 // design-review/shoot-screenshots.mjs 的真实浏览器截图覆盖，不进 CI 断言。
+
+// ============ 作息节律卡：SRI / 睡眠中点 / 社交时差 ============
+// 指标本身的算法正确性由 verify:rhythm 用独立 oracle 兜底（那里有 88 项断言，
+// 包括「与参考文献公式的直接实现逐个比对」）。这里管的是**接线**：
+// 算出来的数有没有正确送到 DOM、口径说明有没有被悄悄删掉、
+// 算不出来时有没有明说而不是显示 0。
+{
+  const demoRecords = getInitialSleepLogs(); // 7 晚连续：09-16 … 09-22
+  const html = render('TrendsTab(作息节律卡)',
+    React.createElement(TrendsTab, { records: demoRecords, theme }));
+
+  const sri = computeSleepRegularityIndex(demoRecords);
+  check('演示数据能算出 SRI（连续 7 晚）', sri !== null);
+  if (sri) {
+    check('SRI 以一位小数显示（与文献报法一致）', html.includes(sri.sri.toFixed(1)),
+      `期望出现 ${sri.sri.toFixed(1)}`);
+    check('SRI 标记位置与数值一致',
+      html.includes(`calc(${Math.max(0, Math.min(100, sri.sri))}% - 1.5px)`),
+      '刻度条上的标记没跟数值对齐');
+    check('写明了已比较多少个相邻日对', html.includes(`${sri.comparedDayPairs} 个相邻日对`),
+      '不写日对数，用户无法判断这个数字有多少数据支撑');
+  }
+
+  // 参考区间必须画在队列的 IQR 位置（73.8–86.3），而不是随便一条带子
+  // React 的 SSR 输出是 style="left:73.8%;width:12.5%"，冒号后没有空格，
+  // 按带空格的写法断言会永远失败。
+  check('参考区间按队列 IQR 定位', html.includes('left:73.8%;width:12.5%'),
+    '参考带位置与 Windred 2024 报告的 IQR 73.8–86.3 不一致');
+
+  // 口径差异说明是这张卡的诚实性底线：删掉它，用户就会拿自报数值
+  // 去跟加速度计队列直接比，得出错误结论。
+  check('明确标注 SRI 按自报卧床区间估算', html.includes('自报卧床区间'),
+    '缺了这句，数值会被当成与队列同口径');
+  check('给出参考区间的出处', html.includes('Windred') && html.includes('Phillips'),
+    '引用了外部数值就必须能追溯到出处');
+  check('说明两者测量方式不同、请以自身变化为准', html.includes('测量方式不同'),
+    '缺少这句会让人直接与队列横向比较');
+
+  const midpoint = computeSleepMidpoint(demoRecords);
+  check('演示数据能算出睡眠中点', midpoint !== null);
+  if (midpoint) {
+    const m = ((midpoint.midpointMinutes % 1440) + 1440) % 1440;
+    const c = (m + 720) % 1440;
+    const clock = `${String(Math.floor(c / 60)).padStart(2, '0')}:${String(Math.round(c % 60)).padStart(2, '0')}`;
+    check('睡眠中点以钟点显示', html.includes(clock), `期望出现 ${clock}`);
+    check('写出集中度（用于判断均值是否有代表性）',
+      html.includes(midpoint.resultantLength.toFixed(2)),
+      `期望出现集中度 ${midpoint.resultantLength.toFixed(2)}`);
+  }
+
+  // 演示数据的自由夜来自周五(09-18)与周六(09-19)：按「起床日」归类才对
+  const jetlag = computeSocialJetlag(demoRecords);
+  check('演示数据的自由夜为 2 晚（周五、周六）', jetlag?.freedayNights === 2,
+    `实际 ${jetlag?.freedayNights} 晚`);
+  check('社交时差用统一时长口径显示',
+    jetlag !== null && html.includes(formatDurationChinese(jetlag.jetlagMinutes)),
+    '时长显示应与项目其它位置口径一致');
+  check('写明自由日按起床日归类', html.includes('按「起床日」区分自由日'),
+    '不写清楚，用户会把周日晚也算成自由夜');
+  check('说明轮班作息不适用', html.includes('轮班作息不适用'),
+    '只按星期几判断，必须声明这个限制');
+}
+
+// 断档时必须明说算不出，而不是给一个数
+{
+  // 09-16 与 09-18 之间缺了 09-17 → 两侧日对全部失效
+  const all = getInitialSleepLogs();
+  const gapped = [all[0], all[2]];
+  const html = render('TrendsTab(作息记录断档)',
+    React.createElement(TrendsTab, { records: gapped, theme }));
+  check('断档时 SRI 返回 null（不硬凑数字）', computeSleepRegularityIndex(gapped) === null,
+    '断档应让两侧日对整体失效');
+  check('断档时提示需要连续记录', html.includes('连续') && html.includes('规律性指数'),
+    '算不出来时要说明原因，不能留空白或显示 0');
+  check('断档时不显示参考区间刻度条', !html.includes('队列 IQR'),
+    '算不出 SRI 却仍画出参考刻度条会误导');
+}
+
+// 只有一晚时同理
+{
+  const one = [getInitialSleepLogs()[0]];
+  const html = render('TrendsTab(作息仅1条)', React.createElement(TrendsTab, { records: one, theme }));
+  check('仅一晚时不显示 SRI 数值', computeSleepRegularityIndex(one) === null && !html.includes('队列 IQR'),
+    '一晚没有可比较的日对');
+  check('仅一晚时仍能显示睡眠中点（只需一晚）', computeSleepMidpoint(one) !== null);
+}
 
 // ============ 汇总 ============
 console.log(`\n${'='.repeat(60)}`);

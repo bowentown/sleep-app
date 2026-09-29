@@ -520,6 +520,86 @@ console.log('\n══ 6e. 数据来源：推演值不得冒充测量值 ══')
   );
 }
 
+console.log('\n══ 6f. 提示风险必须同时给出出路 ══');
+{
+  // 依据：Witte & Allen 2000 (DOI 10.1177/109019810002700506) ——
+  // 强恐惧 + 高效能 = 最大行为改变；强恐惧 + **低效能** = 最大程度防御性反应。
+  // Tannenbaum 2015 (DOI 10.1037/a0039729, N=27,372) 的元分析否定了
+  // "恐惧诉求会反噬"这个流行说法——真正会反噬的是"只提风险、不给办法"。
+  //
+  // 所以规则不是"不要提风险"，而是：**一旦指出风险，必须同时给出用户做得到的动作**。
+  // 这不是文案偏好，是有效应量支撑的。
+  const RISK_LANGUAGE = /相关|关联|偏低|偏高|不足|过长|过短|偏少|偏多|下降|上升|更差|影响|波动/;
+
+  // "提示风险的发现" = act（明确要做点什么）
+  //                  ∪ watch 且正文里确实在说一件不好的事
+  // watch 里的 _thin / _nodata 是"数据不够，先不下结论"，不该带动作，所以排除。
+  const risky = (f: ReturnType<typeof computeFindings>[number]) =>
+    f.severity === 'act' ||
+    (f.severity === 'watch' &&
+      !f.id.endsWith('_thin') &&
+      !f.id.endsWith('_nodata') &&
+      RISK_LANGUAGE.test(f.detail));
+
+  // 两个数据集：演示（睡眠良好）与"深睡骤降"（会产出 act 级自我基线发现）。
+  // 单靠演示数据的话 act 只有 1 条，规则容易被"没人命中"而静默失效。
+  const earlier = Array.from({ length: 14 }, (_, i) =>
+    rec({ id: 'e' + i, date: `2026-09-${String(i + 1).padStart(2, '0')}`, deepSleepMinutes: 95 })
+  );
+  const recent = Array.from({ length: 7 }, (_, i) =>
+    rec({ id: 'r' + i, date: `2026-09-${String(i + 15).padStart(2, '0')}`, deepSleepMinutes: 25 })
+  );
+  // 必须包含一个真正产出 `irregular`（就寝时间波动）的数据集。
+  // 演示数据与 DISORDERED 都产不出它——前者的波动不够大，后者所有夜晚都是 02:40。
+  // 少了这一组，本节的断言会在**从未检查过 irregular** 的情况下全绿：
+  // 把 irregular 的 levers 清空也测不出来（这一条是被反向验证抓出来的）。
+  const IRREGULAR = ['21:00', '22:10', '23:00', '23:50', '00:40', '01:30', '03:00'].map((b, i) =>
+    rec({ id: 'i' + i, date: `2026-09-${String(i + 1).padStart(2, '0')}`, bedtime: b })
+  );
+  const sets: Array<[string, ReturnType<typeof computeFindings>]> = [
+    ['演示（睡眠良好）', computeFindings(DEMO, profile, { includeOnDemand: true })],
+    ['紊乱（多条 act）', computeFindings(DISORDERED, profile, { includeOnDemand: true })],
+    ['就寝不规律', computeFindings(IRREGULAR, profile, { includeOnDemand: true })],
+    ['深睡骤降', computeFindings([...recent, ...earlier], profile, { includeOnDemand: true })],
+  ];
+
+  let checked = 0;
+  for (const [label, set] of sets) {
+    const offenders = set.filter((f) => risky(f) && f.levers.length === 0);
+    checked += set.filter(risky).length;
+    check(
+      `提示风险的发现都带可执行动作（${label}）`,
+      offenders.length === 0,
+      `这些只提风险不给办法：${offenders.map((f) => f.id).join('、')}`
+    );
+  }
+  // 防止规则被"没人命中"而静默失效——必须真的检查到了发现
+  // 规则必须在**真的有风险发现**的数据集上被行使，否则它是空跑的。
+  // 三个数据集合计至少要命中 5 条，否则说明 RISK_LANGUAGE 或分支已经和实现脱节。
+  // 四个数据集合计实测命中 6 条。写成 >=6 是为了让"规则静默失效"必然失败：
+  // 只要 RISK_LANGUAGE、severity 判定或某条发现的分支被改动导致命中数下降，这里就会红。
+  check('风险规则确实被行使（不是空跑）', checked >= 6, `只检查到 ${checked} 条`);
+  // 单独钉住 irregular：它是"指出风险"的典型，必须真的被检查到
+  const irr = computeFindings(IRREGULAR, profile, { includeOnDemand: true }).find((f) => f.id === 'irregular');
+  check('就寝不规律的发现被纳入风险检查', irr !== undefined && risky(irr!), irr ? `${irr.severity} / levers=${irr.levers.length}` : '未产出');
+
+  // 反向验证用的正例：act 那条必须有动作（若这条挂了，说明规则被整体绕过）
+  const actOnes = sets.flatMap(([, set]) => set.filter((f) => f.severity === 'act'));
+  check(
+    'act 级别全部带动作（含非演示数据集）',
+    actOnes.length > 0 && actOnes.every((f) => f.levers.length > 0),
+    `act 共 ${actOnes.length} 条`
+  );
+
+  // 数据不足类必须明确说"不下结论"，而不是含糊地给个方向
+  const thin = sets.flatMap(([, set]) => set.filter((f) => f.id.endsWith('_thin')));
+  check(
+    '样本不足的发现明确拒绝下结论',
+    thin.every((f) => /先不下结论|不够|不可靠|巧合/.test(f.detail)),
+    thin.map((f) => f.id).join('、')
+  );
+}
+
 console.log('\n══ 7. 报告与发现必须同源，不能各说各话 ══');
 {
   const report = generateLocalClinicalAnalysis(DEMO, profile);

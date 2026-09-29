@@ -245,7 +245,6 @@ for (const file of files) {
 
 /** 已知「建好了但还到不了」的符号。每条都要写清去向，它同时也是给用户的待办清单。 */
 const ORPHAN_KNOWN: Array<{ name: string; why: string }> = [
-  { name: 'BreathingExercise', why: '呼吸练习组件已完整，但没有任何界面入口——待产品决定挂到哪个页签' },
   { name: 'SoundscapePlayer', why: '声景播放器组件已完整，但没有入口——待产品决定' },
   { name: 'PWAExportModal', why: 'PWA 导出弹窗已完整，但没有入口——待产品决定' },
   { name: 'AndroidStatusBar', why: 'Android 状态栏配色组件，没有入口——可能已被主题系统取代，待确认后删除' },

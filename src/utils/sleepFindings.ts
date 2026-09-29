@@ -449,7 +449,7 @@ export function computeFindings(
   const lateBed = s.medBedtimeHour >= 24.5; // ≥ 00:30
   const shortSleep = s.avgDurationMin < 380; // < 6h20m
 
-  // ── 1. 深睡占比（TST 目标 13–23%，App 内统一显示 18%）──
+  // ── 1. 深睡占比（TST 参照 13–23%；推演值，图例只标「推演·不可比」）──
   if (!insufficient) {
     if (s.deepPct < 13) {
       const cause = dominantCause(s, [

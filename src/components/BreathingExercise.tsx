@@ -3,6 +3,9 @@ import { Play, Pause, RotateCcw, Wind, ShieldCheck, Heart } from 'lucide-react';
 
 type BreathPhase = 'idle' | 'inhale' | 'hold' | 'exhale';
 
+/** 推荐轮数：达到后提示可以停下，不强制。 */
+export const RECOMMENDED_ROUNDS = 4;
+
 export const BreathingExercise: React.FC = () => {
   const [isActive, setIsActive] = useState(false);
   const [phase, setPhase] = useState<BreathPhase>('idle');
@@ -58,13 +61,13 @@ export const BreathingExercise: React.FC = () => {
   const getPhaseText = () => {
     switch (phase) {
       case 'inhale':
-        return { title: '缓缓深吸气', desc: '鼻腔慢慢充盈腹部，感受氧气注入' };
+        return { title: '缓缓深吸气', desc: '用鼻子吸气，让腹部先鼓起来' };
       case 'hold':
-        return { title: '平稳屏气', desc: '静止悬息，让副交感神经安抚心率' };
+        return { title: '平稳屏气', desc: '屏不住就直接呼气——7 秒不是硬指标' };
       case 'exhale':
-        return { title: '轻柔呼气', desc: '口唇微启，彻底排解身体积累的紧张' };
+        return { title: '轻柔呼气', desc: '口唇微启，慢慢把气吐尽' };
       default:
-        return { title: '4-7-8 深度助眠呼吸', desc: '源自哈佛睡眠医学研究，快速平息心率入眠' };
+        return { title: '4-7-8 助眠呼吸', desc: '呼气比吸气长，副交感神经就会占上风' };
     }
   };
 
@@ -84,7 +87,7 @@ export const BreathingExercise: React.FC = () => {
       <div className="flex items-center justify-between w-full mb-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
           <Wind className="w-4 h-4 text-teal-400" />
-          <span>4-7-8 神经降噪呼吸法</span>
+          <span>4-7-8 助眠呼吸法</span>
         </div>
         <span className="text-[11px] text-slate-400">已完成 {completedRounds} 轮</span>
       </div>
@@ -132,6 +135,16 @@ export const BreathingExercise: React.FC = () => {
         <p className="text-xs text-slate-400 mt-0.5 max-w-xs">{currentInfo.desc}</p>
       </div>
 
+      {/* 满 4 轮后给一句「可以停了」。
+          呼吸练习的目的是松下来，不是完成 KPI；把「还差几轮」变成压力就本末倒置了。
+          CBT-I 里唯一被证实起中介作用的是**降低睡眠努力**（10.1111/psyg.13074），
+          所以这里的措辞是允许停下，而不是催促继续。 */}
+      {completedRounds >= RECOMMENDED_ROUNDS && (
+        <p className="text-[11px] text-teal-300/85 mb-3 max-w-xs">
+          已经 {completedRounds} 轮了，想停就停——躺着不动也是休息。
+        </p>
+      )}
+
       {/* Controls */}
       <div className="flex items-center gap-3">
         {!isActive ? (
@@ -162,9 +175,9 @@ export const BreathingExercise: React.FC = () => {
       </div>
 
       <div className="mt-4 pt-3 border-t border-slate-800/60 w-full flex items-center justify-center gap-4 text-[11px] text-slate-400">
-        <span>🌙 睡前推荐完成 4 轮</span>
+        <span>🌙 睡前 4 轮左右即可</span>
         <span>•</span>
-        <span>降低皮质醇压力荷尔蒙</span>
+        <span>延长呼气激活副交感神经</span>
       </div>
     </div>
   );

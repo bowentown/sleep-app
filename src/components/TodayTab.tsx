@@ -5,11 +5,14 @@ import {
   ArrowRight,
   Clock,
   Sparkles,
+  Wind,
+  ChevronDown,
 } from 'lucide-react';
 import { SleepRecord, UserProfile } from '../types/sleep';
 import { SleepHypnogram } from './SleepHypnogram';
 import { formatDurationChinese } from '../utils/sleepScore';
 import { OneTapSleepTracker } from './OneTapSleepTracker';
+import { BreathingExercise } from './BreathingExercise';
 import { ThemeConfig } from '../utils/themeStyles';
 import { buildMorningSummary, describeWeekExtreme, describeDelta, minutesSinceNoon, describeVsSelf, describeMoodVsScore, scoreBand } from '../utils/sleepInsights';
 
@@ -31,6 +34,10 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   theme,
 }) => {
   const latestRecord = records[0] || null;
+
+  // 呼吸练习默认收起。首屏的排版密度已经调过一轮（工具入口刻意降权成轻量列表行），
+  // 直接摊开一个 171 行的卡片会把「工具」重新抬到和「数据」一样重。
+  const [showBreathing, setShowBreathing] = useState(false);
 
   // 得分环 + 数字 count-up（进入页面时 0 → 目标值，800ms 缓出）
   const [displayScore, setDisplayScore] = useState(0);
@@ -289,6 +296,33 @@ export const TodayTab: React.FC<TodayTabProps> = ({
           </span>
           <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
         </button>
+
+        {/* 睡前呼吸练习：与上面两条一样是轻量列表行，点开才展开内容 */}
+        <button
+          type="button"
+          onClick={() => setShowBreathing((v) => !v)}
+          aria-expanded={showBreathing}
+          className={`w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/[0.04] transition-colors active:bg-white/[0.07] cursor-pointer group ${
+            showBreathing ? `border-b ${theme.cardBorder}` : ''
+          }`}
+        >
+          <Wind className={`w-4 h-4 shrink-0 ${theme.accentText}`} />
+          <span className="flex-1 min-w-0">
+            <span className="text-xs font-bold text-white block">睡前呼吸练习</span>
+            <span className={`text-[11px] ${theme.textMuted} font-medium block`}>4-7-8 · 呼气比吸气长</span>
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 text-slate-500 group-hover:text-white transition-transform shrink-0 ${
+              showBreathing ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+
+        {showBreathing && (
+          <div className="p-3">
+            <BreathingExercise />
+          </div>
+        )}
 
       </div>
     </div>

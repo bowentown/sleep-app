@@ -46,8 +46,11 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
   const awakePercent = totalMin > 0 ? Math.round((record.awakeMinutes / totalMin) * 100) : 0;
 
   // 占总睡眠时长（TST）：深睡/REM 的临床目标区间（约 13–23% / 20–25%）是按 TST 定义的，
-  // 所以「目标 >18%」这类对照必须用这一套；同时与 TodayTab 的「深睡阶段 xx%」同口径。
+  // 同时与 TodayTab 的「深睡阶段 xx%」同口径。
   // 混用两套分母会让同一屏出现两个数（95 分深睡曾同时显示 21% 和 20%）。
+  //
+  // 注意：这两个百分比是**按 TST 的推演值**，图例里不再拿它对照临床目标数值
+  // （此前写「目标 18% / 目标 20%」，见下方渲染点的注释）。
   const tstMin = record.durationMinutes;
   const shareOfTst = (minutes: number) =>
     tstMin > 0 ? Math.round((minutes / tstMin) * 100) : 0;
@@ -208,7 +211,13 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.deepSleepMinutes}分</span>
             <span className="block text-xs text-indigo-400 font-mono font-medium">{deepShareOfTst}%</span>
-            <span className={`block text-[11px] ${textMuted} font-mono`}>目标 18%</span>
+            {/* 原来这里写「目标 18%」。深睡是**推演值**（sleepRecord.ts 先造分期再倒推总时长），
+                拿它去对照临床目标数值就是第五轮那个缺陷的同一形状：
+                手机没有脑电电极，这个百分比无法与分期实测比较。
+                第五轮改了 findings / clinicalSleepEngine 的标题，**漏掉了这个展示点**——
+                是截图才发现的（断言只证明字符串存在，证明不了屏幕上写着什么）。
+                用与 TodayTab「深睡阶段 推演」一致的词。 */}
+            <span className={`block text-[11px] ${textMuted} font-mono`}>推演·不可比</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>
@@ -227,7 +236,8 @@ export const SleepHypnogram: React.FC<SleepHypnogramProps> = ({
             </div>
             <span className={`font-bold ${theme?.textPrimary || 'text-white'} mt-0.5 block tabular-nums text-sm`}>{record.remSleepMinutes}分</span>
             <span className="block text-xs text-pink-400 font-mono font-medium">{remShareOfTst}%</span>
-            <span className={`block text-[11px] ${textMuted} font-mono`}>目标 20%</span>
+            {/* REM 同样是推演值，理由同上 */}
+            <span className={`block text-[11px] ${textMuted} font-mono`}>推演·不可比</span>
           </div>
 
           <div className={`p-2 rounded-xl ${statBg} border ${innerBorder} shadow-inner`}>

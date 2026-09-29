@@ -242,6 +242,28 @@ for (const [label, record] of cases) {
   assertClean('SleepHypnogram(无分期)', html);
 }
 
+// ============ SleepHypnogram：推演的分期值不得对照临床目标数值 ============
+// 真实缺陷（第五轮漏掉、靠截图才发现）：图例的深睡格写着「目标 18%」、REM 格写着「目标 20%」。
+// 这两个百分比来自 sleepRecord.ts 的**推演分期**（先造分期再倒推总时长），
+// 拿它们去对照临床目标数值，就是「界面声称了代码做不到的事」的同一形状。
+//
+// 为什么放在**渲染层**查：文案护栏按字符串字面量/JSX 文本节点提取，
+// 「深睡」和「目标 18%」是同一个 <div> 里两个独立文本节点，按字符串根本配不到一起。
+// 只有把组件渲染出来，才能看到屏幕上真正并排的是什么。
+{
+  const withStages: SleepRecord = { ...normal, stages: normal.stages, deepSleepMinutes: 95, remSleepMinutes: 96 };
+  const html = render('SleepHypnogram(推演值标注)', React.createElement(SleepHypnogram, { record: withStages, theme }));
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+  check('图例不再给推演的分期值标临床目标数值', !/目标\s*\d+(\.\d+)?%/.test(text),
+    `渲染文本里出现了「目标 NN%」：${(text.match(/目标\s*\d+(\.\d+)?%/g) || []).join('、')}`);
+  check('深睡格标注了推演性质', /深睡[\s\S]{0,120}?推演/.test(text), text.slice(0, 200));
+  check('REM 格标注了推演性质', /REM[\s\S]{0,120}?推演/.test(text), text.slice(0, 200));
+  // 反向：这条检查不能是空跑——图例里必须真的有深睡和 REM 两格
+  check('图例确实渲染了深睡与 REM（否则上面的检查空跑）',
+    text.includes('深睡') && text.includes('REM'), '');
+}
+
 // ============ TodayTab × SleepHypnogram：深睡占比必须同口径 ============
 // 真实缺陷：报告卡以「总睡眠」为分母显示 21%，下方统计块以「卧床」为分母显示 20%——
 // 同一屏同一个指标出现两个数；而统计块还拿这个数去对照「目标 >18%」，
@@ -277,15 +299,28 @@ for (const [label, record] of cases) {
       /深睡阶段[\s\S]{0,200}?推演/.test(stripComments(todayHtml)),
       '深睡行没有「推演」标记，用户会以为这是测出来的'
     );
-    // SleepHypnogram 的深睡统计块（深睡是第一个带临床目标的块）。
-    // 占比与目标现在是两个 span：大字「21%」+ 小字「目标 18%」——
-    // 原来写成一串「21% (目标>18%)」，在四列窄格里必定折行。
+    // SleepHypnogram 的深睡统计块：占比与来源标记是两个 span——
+    // 大字「21%」+ 小字「推演·不可比」（原来写成一串「21% (目标>18%)」，四列窄格里必定折行）。
+    //
+    // ★★ 这里原本有一条断言**要求「目标 18%」必须存在**：
+    //      check(`分期块写明深睡临床目标`, hypnoTarget === '18',
+    //        `…但它是「21% 算不算好」的唯一依据`);
+    //    这是第四轮那条教训的**第二次出现——断言把实现的 bug 锁住了**。
+    //    深睡是推演值（sleepRecord.ts 先造分期再倒推总时长），
+    //    「21% 算不算好」这个问题本身就不该由临床目标回答；
+    //    那条断言不是在保护一个性质，而是在保护一个缺陷，连报错文案都复述了错误前提。
+    //
+    //    发现方式：**先删掉被测代码，再看有没有断言变红**。
+    //    （删之前永远先问一句：有没有哪条断言正在撑着我删的东西？）
     const hypnoMatch = stripComments(hypnoHtml)
-      .match(/>([\d.]+)%<\/span><span[^>]*>目标 ([\d.]+)%</);
+      .match(/>([\d.]+)%<\/span><span[^>]*>(推演·不可比)</);
     const hypnoPct = hypnoMatch?.[1];
-    const hypnoTarget = hypnoMatch?.[2];
-    check(`分期块写明深睡临床目标（${label}）`, hypnoTarget === '18',
-      `实际 ${hypnoTarget ?? '未解析'}——目标值被拆行时最容易顺手删掉，但它是「21% 算不算好」的唯一依据`);
+    const hypnoMark = hypnoMatch?.[2];
+    check(`分期块自曝深睡是推演值（${label}）`, hypnoMark === '推演·不可比',
+      `实际 ${hypnoMark ?? '未解析'}——推演值必须在指标处说明来源，不能看起来像实测`);
+    check(`分期块不拿推演值对照临床目标（${label}）`,
+      !/目标\s*\d+(\.\d+)?%/.test(stripComments(hypnoHtml)),
+      '深睡是两个数字里唯一带「临床目标」的那个块，但它测不到');
     const expected = record.durationMinutes > 0
       ? Math.round((record.deepSleepMinutes / record.durationMinutes) * 100)
       : 0;
@@ -1044,6 +1079,42 @@ console.log('\n══ 渲染层：**粗体** 必须变成 <strong>，不能带�
   check('危机求助文案渲染后不含字面星号', !/\*\*/.test(crisisOut),
     crisisOut.replace(/<[^>]+>/g, '').slice(0, 100));
   check('危机求助文案保留了求助热线号码', crisisOut.includes('400-161-9995'), crisisOut.slice(0, 80));
+}
+
+// ============ 睡前呼吸练习（第十六轮接入，此前是从未挂上入口的孤儿组件）============
+{
+  const { BreathingExercise, RECOMMENDED_ROUNDS } = await import('../src/components/BreathingExercise.js');
+  const html = renderToString(React.createElement(BreathingExercise));
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+  check('呼吸练习能渲染', html.length > 400, `只有 ${html.length} 字符`);
+  check('未开始时显示「点击开始」', text.includes('点击开始'), text.slice(0, 80));
+  check('初始为 0 轮', text.includes('已完成 0 轮'), text.slice(0, 120));
+  check('推荐轮数是 4', RECOMMENDED_ROUNDS === 4, String(RECOMMENDED_ROUNDS));
+
+  // 这几条防的是**回归**：组件原来写着「源自哈佛睡眠医学研究，快速平息心率入眠」，
+  // 而它此前没有任何入口，所以那句从没被人看见过。现在它可见了，必须钉住。
+  check('不声称机构研究出处', !/哈佛|斯坦福|梅奥|约翰霍普金斯|牛津|剑桥|耶鲁/.test(text), text.slice(0, 120));
+  check('不承诺疗效', !/快速平息|彻底排解|治愈|疗效/.test(text), text.slice(0, 120));
+  check('给出的是机制而不是疗效', text.includes('副交感神经'), text.slice(0, 160));
+
+  // 「屏气 7 秒不是硬指标」只出现在 hold 阶段的文案里，服务端渲染停在 idle 状态、
+  // 到不了那个分支，所以这一条只能查源码。**真正的验证靠截图**：
+  // 跑起来走到屏气阶段，看那句话是不是真的显示出来。
+  const beSrc = readFileSync('src/components/BreathingExercise.tsx', 'utf8');
+  check('屏气阶段说明了 7 秒不是硬指标（源码级，运行时见截图）',
+    beSrc.includes('7 秒不是硬指标'), '');
+  check('满 4 轮后提示可以停下（而不是催促继续）',
+    beSrc.includes('想停就停'), '');
+}
+
+// 入口必须真的存在：组件写好了但没入口，就是本轮开头那个「孤儿组件」问题。
+{
+  const todaySrc = readFileSync('src/components/TodayTab.tsx', 'utf8');
+  check('睡眠页有呼吸练习的入口行', todaySrc.includes('睡前呼吸练习'), '');
+  check('入口是可展开的（默认收起，不增加首屏密度）',
+    /showBreathing/.test(todaySrc) && /aria-expanded/.test(todaySrc), '');
+  check('入口默认收起', /useState\(false\)/.test(todaySrc), '');
 }
 
 // ============ 汇总 ============

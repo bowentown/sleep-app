@@ -15,7 +15,7 @@
     "verify:data": "tsx tools/verify-invariants.mts",
     "verify:render": "tsx tools/verify-render.mts",
     "verify:colors": "tsx tools/verify-stage-colors.mts",
-    "check": "npm run lint && npm run verify:total && npm run build",
+    "check": "npm run lint && npm run build && npm run verify:total",
     "verify:insights": "tsx tools/verify-insights.mts",
     "verify:animation": "tsx tools/verify-animation-transform.mts",
     "verify:rhythm": "tsx tools/verify-rhythm.mts",

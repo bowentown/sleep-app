@@ -18,6 +18,9 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+// 顺序即依赖顺序：主题颜色类扫描的是**构建产物**，所以它必须排在 build 之后。
+// 我第一版把整个总计脚本放在 build 之前，CI 直接挂在
+// 「未找到 dist/assets，请先执行 npm run build」——改顺序没检查前置条件。
 const SEGMENTS = [
   ['不变量', 'tools/verify-invariants.mts'],
   ['渲染层', 'tools/verify-render.mts'],
@@ -59,6 +62,13 @@ for (const [label, script] of SEGMENTS) {
       console.error(`\n❌ 「${label}」有断言失败（该段共 ${n} 项）。`);
       continue;
     }
+    // 前置条件缺失要单独说清楚。verify-theme-classes 扫描的是**构建产物**，
+    // 没有 dist/ 时它不打印计数，会被误报成"没解析到"。
+    if (/未找到 dist/.test(out)) {
+      console.error(`\n❌ 「${label}」需要 dist/ 存在（它扫描构建产物里的类名），当前没有。`);
+      console.error('   请先 npm run build。npm run check 的顺序是 lint → build → verify:total，就是为此。');
+      process.exit(1);
+    }
     console.error(`\n❌ 总计脚本无法从「${label}」的输出里解析出断言数（${script}）。`);
     console.error('   不是 0 项，是**没解析到**。请检查该脚本是否仍打印「（N 项…）」或「共 N 项」。');
     process.exit(1);
@@ -85,6 +95,7 @@ console.log(`   ${'合计'.padEnd(11, '　')} ${String(total).padStart(4)} 项`)
 console.log('='.repeat(60));
 
 if (failed) {
+  console.error(``);
   console.error('❌ 有分段失败（见上方输出），总数仅供参考。');
   process.exit(1);
 }
